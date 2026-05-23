@@ -1,3 +1,3 @@
 # User Profile
-
-Use this file for durable user preferences and stable project context discovered during compaction.
+- 用户使用中文交流。
+- 用户倾向于让助手首先自我介绍，以了解其能力和行为方式。

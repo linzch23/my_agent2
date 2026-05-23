@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -39,6 +40,18 @@ class ModelClient(Protocol):
     ) -> AgentMessage:
         ...
 
+    def stream_message(
+        self,
+        *,
+        model: str,
+        max_tokens: int,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        on_text_delta: Callable[[str], None] | None = None,
+    ) -> AgentMessage:
+        ...
+
 
 def build_model_client(provider: str) -> ModelClient:
     provider = provider.lower().strip()
@@ -69,7 +82,7 @@ class AnthropicModelClient:
 
         self.client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
 
-    def create_message(
+    def _request_kwargs(
         self,
         *,
         model: str,
@@ -77,7 +90,7 @@ class AnthropicModelClient:
         system: str,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
-    ) -> AgentMessage:
+    ) -> dict[str, Any]:
         kwargs = {
             "model": model,
             "max_tokens": max_tokens,
@@ -86,25 +99,7 @@ class AnthropicModelClient:
         }
         if tools:
             kwargs["tools"] = tools
-        response = self.client.messages.create(**kwargs)
-        blocks: list[TextBlock | ToolUseBlock] = []
-        for block in response.content:
-            if block.type == "text":
-                blocks.append(TextBlock(text=block.text))
-            elif block.type == "tool_use":
-                blocks.append(ToolUseBlock(id=block.id, name=block.name, input=block.input))
-        return AgentMessage(
-            content=blocks,
-            stop_reason=response.stop_reason,
-            usage=response.usage,
-        )
-
-
-class OpenAICompatibleModelClient:
-    def __init__(self, *, api_key: str, base_url: str) -> None:
-        from openai import OpenAI
-
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        return kwargs
 
     def create_message(
         self,
@@ -115,6 +110,78 @@ class OpenAICompatibleModelClient:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
     ) -> AgentMessage:
+        response = self.client.messages.create(
+            **self._request_kwargs(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=messages,
+                tools=tools,
+            )
+        )
+        return _from_anthropic_response(response)
+
+    def stream_message(
+        self,
+        *,
+        model: str,
+        max_tokens: int,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        on_text_delta: Callable[[str], None] | None = None,
+    ) -> AgentMessage:
+        with self.client.messages.stream(
+            **self._request_kwargs(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=messages,
+                tools=tools,
+            )
+        ) as stream:
+            for event in stream:
+                if getattr(event, "type", None) != "content_block_delta":
+                    continue
+                delta = getattr(event, "delta", None)
+                if getattr(delta, "type", None) != "text_delta":
+                    continue
+                text = getattr(delta, "text", "")
+                if text and on_text_delta:
+                    on_text_delta(text)
+            response = stream.get_final_message()
+        return _from_anthropic_response(response)
+
+
+def _from_anthropic_response(response) -> AgentMessage:
+    blocks: list[TextBlock | ToolUseBlock] = []
+    for block in response.content:
+        if block.type == "text":
+            blocks.append(TextBlock(text=block.text))
+        elif block.type == "tool_use":
+            blocks.append(ToolUseBlock(id=block.id, name=block.name, input=block.input))
+    return AgentMessage(
+        content=blocks,
+        stop_reason=response.stop_reason,
+        usage=response.usage,
+    )
+
+
+class OpenAICompatibleModelClient:
+    def __init__(self, *, api_key: str, base_url: str) -> None:
+        from openai import OpenAI
+
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+
+    def _request_kwargs(
+        self,
+        *,
+        model: str,
+        max_tokens: int,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         kwargs = {
             "model": model,
             "max_tokens": max_tokens,
@@ -122,7 +189,26 @@ class OpenAICompatibleModelClient:
         }
         if tools:
             kwargs["tools"] = [_to_openai_tool(tool) for tool in tools]
-        response = self.client.chat.completions.create(**kwargs)
+        return kwargs
+
+    def create_message(
+        self,
+        *,
+        model: str,
+        max_tokens: int,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> AgentMessage:
+        response = self.client.chat.completions.create(
+            **self._request_kwargs(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=messages,
+                tools=tools,
+            )
+        )
         choice = response.choices[0]
         message = choice.message
         blocks: list[TextBlock | ToolUseBlock] = []
@@ -139,6 +225,94 @@ class OpenAICompatibleModelClient:
             content=blocks,
             stop_reason="tool_use" if tool_calls else (choice.finish_reason or "stop"),
             usage=response.usage,
+        )
+
+    def stream_message(
+        self,
+        *,
+        model: str,
+        max_tokens: int,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        on_text_delta: Callable[[str], None] | None = None,
+    ) -> AgentMessage:
+        stream = self.client.chat.completions.create(
+            **self._request_kwargs(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=messages,
+                tools=tools,
+            ),
+            stream=True,
+        )
+
+        text_parts: list[str] = []
+        tool_calls: dict[int, dict[str, str]] = {}
+        finish_reason: str | None = None
+        usage = None
+
+        for chunk in stream:
+            usage = getattr(chunk, "usage", None) or usage
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+
+            choice = choices[0]
+            finish_reason = getattr(choice, "finish_reason", None) or finish_reason
+            delta = getattr(choice, "delta", None)
+            if delta is None:
+                continue
+
+            content = getattr(delta, "content", None)
+            if content:
+                text_parts.append(content)
+                if on_text_delta:
+                    on_text_delta(content)
+
+            for call in getattr(delta, "tool_calls", None) or []:
+                index = getattr(call, "index", None)
+                if index is None:
+                    index = len(tool_calls)
+                state = tool_calls.setdefault(
+                    index,
+                    {"id": "", "name": "", "arguments": ""},
+                )
+                if getattr(call, "id", None):
+                    state["id"] = call.id
+                function = getattr(call, "function", None)
+                if function is None:
+                    continue
+                if getattr(function, "name", None):
+                    state["name"] += function.name
+                if getattr(function, "arguments", None):
+                    state["arguments"] += function.arguments
+
+        blocks: list[TextBlock | ToolUseBlock] = []
+        text = "".join(text_parts)
+        if text:
+            blocks.append(TextBlock(text=text))
+
+        for index in sorted(tool_calls):
+            state = tool_calls[index]
+            try:
+                tool_input = json.loads(state["arguments"] or "{}")
+            except json.JSONDecodeError:
+                tool_input = {"_raw_arguments": state["arguments"]}
+            if state["name"]:
+                blocks.append(
+                    ToolUseBlock(
+                        id=state["id"] or f"call_{index}",
+                        name=state["name"],
+                        input=tool_input,
+                    )
+                )
+
+        return AgentMessage(
+            content=blocks,
+            stop_reason="tool_use" if tool_calls else (finish_reason or "stop"),
+            usage=usage,
         )
 
 

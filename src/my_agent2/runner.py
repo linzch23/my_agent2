@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -34,20 +35,28 @@ class AgentRunner:
         self.on_usage = on_usage
         self.compactor = compactor
 
-    def step(self, history: list[dict[str, Any]]) -> str:
+    def step(
+        self,
+        history: list[dict[str, Any]],
+        on_text_delta: Callable[[str], None] | None = None,
+    ) -> str:
         turns = 0
         while True:
             if self.max_turns is not None and turns >= self.max_turns:
                 return f"Stopped after reaching max_turns={self.max_turns}."
             turns += 1
 
-            message = self.client.create_message(
-                model=self.model,
-                max_tokens=self.max_tokens,
-                system=self.system_prompt,
-                messages=history,
-                tools=self.registry.definitions(),
-            )
+            request = {
+                "model": self.model,
+                "max_tokens": self.max_tokens,
+                "system": self.system_prompt,
+                "messages": history,
+                "tools": self.registry.definitions(),
+            }
+            if on_text_delta:
+                message = self.client.stream_message(**request, on_text_delta=on_text_delta)
+            else:
+                message = self.client.create_message(**request)
             if self.on_usage:
                 self.on_usage(self.model, message.usage)
 

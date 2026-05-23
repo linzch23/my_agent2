@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -144,10 +145,14 @@ class AgentApp:
         )
         return registry
 
-    def ask(self, user_input: str) -> str:
+    def ask(
+        self,
+        user_input: str,
+        on_text_delta: Callable[[str], None] | None = None,
+    ) -> str:
         self.history.append({"role": "user", "content": user_input})
         self.memory.append_history("user", user_input)
-        reply = self.runner.step(self.history)
+        reply = self.runner.step(self.history, on_text_delta=on_text_delta)
         self.memory.append_history("assistant", reply)
         return reply
 

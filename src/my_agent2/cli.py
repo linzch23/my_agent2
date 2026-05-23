@@ -56,5 +56,6 @@ def main() -> None:
             print(json.dumps(app.team_bus.read_inbox("lead"), ensure_ascii=False, indent=2) + "\n")
             continue
 
-        reply = app.ask(user_input)
-        print(f"Agent> {reply}\n")
+        print("Agent> ", end="", flush=True)
+        app.ask(user_input, on_text_delta=lambda text: print(text, end="", flush=True))
+        print("\n")

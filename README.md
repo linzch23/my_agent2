@@ -7,6 +7,7 @@ and the project packaged for `uv`.
 It includes:
 
 - a provider adapter for DeepSeek, Anthropic, and OpenAI-compatible chat APIs
+- streaming assistant text in the main CLI conversation
 - workspace file tools: `read_file`, `write_file`, `edit_file`, `glob`, `grep`
 - command and web fetch tools
 - persistent conversation logs and lightweight long-term memory
