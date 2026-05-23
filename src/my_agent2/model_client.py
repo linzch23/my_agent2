@@ -14,6 +14,12 @@ class TextBlock:
 
 
 @dataclass(frozen=True)
+class ReasoningBlock:
+    text: str
+    type: str = "reasoning"
+
+
+@dataclass(frozen=True)
 class ToolUseBlock:
     id: str
     name: str
@@ -23,7 +29,7 @@ class ToolUseBlock:
 
 @dataclass(frozen=True)
 class AgentMessage:
-    content: list[TextBlock | ToolUseBlock]
+    content: list[TextBlock | ReasoningBlock | ToolUseBlock]
     stop_reason: str
     usage: Any = None
 
@@ -211,7 +217,10 @@ class OpenAICompatibleModelClient:
         )
         choice = response.choices[0]
         message = choice.message
-        blocks: list[TextBlock | ToolUseBlock] = []
+        blocks: list[TextBlock | ReasoningBlock | ToolUseBlock] = []
+        reasoning_content = _extra_attr(message, "reasoning_content")
+        if reasoning_content:
+            blocks.append(ReasoningBlock(text=reasoning_content))
         if message.content:
             blocks.append(TextBlock(text=message.content))
         tool_calls = getattr(message, "tool_calls", None) or []
@@ -248,6 +257,7 @@ class OpenAICompatibleModelClient:
             stream=True,
         )
 
+        reasoning_parts: list[str] = []
         text_parts: list[str] = []
         tool_calls: dict[int, dict[str, str]] = {}
         finish_reason: str | None = None
@@ -264,6 +274,10 @@ class OpenAICompatibleModelClient:
             delta = getattr(choice, "delta", None)
             if delta is None:
                 continue
+
+            reasoning_content = _extra_attr(delta, "reasoning_content")
+            if reasoning_content:
+                reasoning_parts.append(reasoning_content)
 
             content = getattr(delta, "content", None)
             if content:
@@ -289,7 +303,10 @@ class OpenAICompatibleModelClient:
                 if getattr(function, "arguments", None):
                     state["arguments"] += function.arguments
 
-        blocks: list[TextBlock | ToolUseBlock] = []
+        blocks: list[TextBlock | ReasoningBlock | ToolUseBlock] = []
+        reasoning = "".join(reasoning_parts)
+        if reasoning:
+            blocks.append(ReasoningBlock(text=reasoning))
         text = "".join(text_parts)
         if text:
             blocks.append(TextBlock(text=text))
@@ -324,10 +341,29 @@ def _to_anthropic_message(message: dict[str, Any]) -> dict[str, Any]:
     for block in content:
         if isinstance(block, TextBlock):
             converted.append({"type": "text", "text": block.text})
+        elif isinstance(block, ReasoningBlock):
+            continue
         elif isinstance(block, ToolUseBlock):
             converted.append(
                 {"type": "tool_use", "id": block.id, "name": block.name, "input": block.input}
             )
+        elif isinstance(block, dict):
+            block_type = block.get("type")
+            if block_type == "reasoning":
+                continue
+            if block_type == "text":
+                converted.append({"type": "text", "text": block.get("text", "")})
+            elif block_type == "tool_use":
+                converted.append(
+                    {
+                        "type": "tool_use",
+                        "id": block.get("id", ""),
+                        "name": block.get("name", ""),
+                        "input": block.get("input") or {},
+                    }
+                )
+            else:
+                converted.append(block)
         else:
             converted.append(block)
     return {"role": message["role"], "content": converted}
@@ -343,7 +379,8 @@ def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
 
         if role == "assistant":
-            text = "\n".join(block.text for block in content if isinstance(block, TextBlock))
+            text_parts = []
+            reasoning_parts = []
             tool_calls = []
             for block in content:
                 if isinstance(block, ToolUseBlock):
@@ -357,12 +394,40 @@ def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                             },
                         }
                     )
+                elif isinstance(block, TextBlock):
+                    text_parts.append(block.text)
+                elif isinstance(block, ReasoningBlock):
+                    reasoning_parts.append(block.text)
+                elif isinstance(block, dict):
+                    block_type = block.get("type")
+                    if block_type == "text":
+                        text_parts.append(str(block.get("text", "")))
+                    elif block_type == "reasoning":
+                        reasoning_parts.append(str(block.get("text", "")))
+                    elif block_type == "tool_use":
+                        tool_calls.append(
+                            {
+                                "id": block.get("id", ""),
+                                "type": "function",
+                                "function": {
+                                    "name": block.get("name", ""),
+                                    "arguments": json.dumps(
+                                        block.get("input") or {}, ensure_ascii=False
+                                    ),
+                                },
+                            }
+                        )
+            text = "\n".join(part for part in text_parts if part)
+            reasoning = "\n".join(part for part in reasoning_parts if part)
             item = {"role": "assistant", "content": text or None}
+            if reasoning:
+                item["reasoning_content"] = reasoning
             if tool_calls:
                 item["tool_calls"] = tool_calls
             converted.append(item)
             continue
 
+        text_parts = []
         for block in content:
             if isinstance(block, dict) and block.get("type") == "tool_result":
                 converted.append(
@@ -372,6 +437,12 @@ def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         "content": block.get("content", ""),
                     }
                 )
+            elif isinstance(block, TextBlock):
+                text_parts.append(block.text)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                text_parts.append(str(block.get("text", "")))
+        if text_parts:
+            converted.append({"role": role, "content": "\n".join(part for part in text_parts if part)})
     return converted
 
 
@@ -384,3 +455,13 @@ def _to_openai_tool(tool: dict[str, Any]) -> dict[str, Any]:
             "parameters": tool["input_schema"],
         },
     }
+
+
+def _extra_attr(obj: Any, name: str) -> Any:
+    value = getattr(obj, name, None)
+    if value is not None:
+        return value
+    extra = getattr(obj, "model_extra", None)
+    if isinstance(extra, dict):
+        return extra.get(name)
+    return None

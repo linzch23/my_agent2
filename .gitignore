@@ -6,5 +6,6 @@ __pycache__/
 .mypy_cache/
 memory/
 .team/
+sessions/
 dist/
 build/

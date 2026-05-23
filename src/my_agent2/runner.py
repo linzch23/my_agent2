@@ -39,12 +39,18 @@ class AgentRunner:
         self,
         history: list[dict[str, Any]],
         on_text_delta: Callable[[str], None] | None = None,
+        on_assistant_message: Callable[[list[Any]], None] | None = None,
+        on_tool_call: Callable[[Any], None] | None = None,
+        on_tool_result: Callable[[dict[str, str]], None] | None = None,
+        history_provider: Callable[[], list[dict[str, Any]]] | None = None,
     ) -> str:
         turns = 0
         while True:
             if self.max_turns is not None and turns >= self.max_turns:
                 return f"Stopped after reaching max_turns={self.max_turns}."
             turns += 1
+            if history_provider is not None:
+                history = history_provider()
 
             request = {
                 "model": self.model,
@@ -61,13 +67,22 @@ class AgentRunner:
                 self.on_usage(self.model, message.usage)
 
             history.append({"role": "assistant", "content": message.content})
+            if on_assistant_message:
+                on_assistant_message(message.content)
             if message.stop_reason != "tool_use":
                 if self.compactor:
                     self.compactor.maybe_compact(history)
                 return _text_from_content(message.content)
 
             tool_blocks = [block for block in message.content if block.type == "tool_use"]
-            history.append({"role": "user", "content": self._execute_tool_blocks(tool_blocks)})
+            for block in tool_blocks:
+                if on_tool_call:
+                    on_tool_call(block)
+            tool_results = self._execute_tool_blocks(tool_blocks)
+            for result in tool_results:
+                if on_tool_result:
+                    on_tool_result(result)
+            history.append({"role": "user", "content": tool_results})
 
     def _execute_tool_blocks(self, tool_blocks: list[Any]) -> list[dict[str, str]]:
         results: dict[str, str] = {}

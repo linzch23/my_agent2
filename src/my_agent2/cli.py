@@ -12,6 +12,11 @@ HELP = """Commands:
   /compact  compact conversation history now
   /team     show persistent teammates
   /inbox    read lead inbox
+  /tree [--filter default|no-tools|user-only|labeled-only|all]
+  /jump ID  move active leaf to an existing entry
+  /fork ID  move active leaf to an existing entry; next input creates a sibling branch
+  /clone    clone active branch into a new session file and switch to it
+  /label ID LABEL
   /exit     quit
 """
 
@@ -59,6 +64,30 @@ def main() -> None:
                 import json
 
                 print(json.dumps(app.team_bus.read_inbox("lead"), ensure_ascii=False, indent=2) + "\n")
+                continue
+            if user_input.startswith("/tree"):
+                parts = user_input.split()
+                filter_mode = "default"
+                if len(parts) == 3 and parts[1] == "--filter":
+                    filter_mode = parts[2]
+                print(app.tree_view(filter_mode) + "\n")
+                continue
+            if user_input.startswith("/jump "):
+                app.jump_to_entry(user_input.split(maxsplit=1)[1].strip())
+                print("Active leaf updated.\n")
+                continue
+            if user_input.startswith("/fork "):
+                app.fork_from_entry(user_input.split(maxsplit=1)[1].strip())
+                print("Fork point selected. Your next message will create a new branch.\n")
+                continue
+            if user_input == "/clone":
+                new_session_id = app.clone_active_branch()
+                print(f"Cloned active branch into session {new_session_id}.\n")
+                continue
+            if user_input.startswith("/label "):
+                _, entry_id, label = user_input.split(maxsplit=2)
+                app.label_entry(entry_id, label)
+                print("Label saved.\n")
                 continue
 
             print("Agent> ", end="", flush=True)

@@ -5,7 +5,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:  # pragma: no cover - allows stdlib-only unit tests
+    def load_dotenv(*args, **kwargs):
+        return False
 
 from .compactor import HistoryCompactor
 from .context import ContextBuilder
@@ -16,6 +20,7 @@ from .runner import AgentRunner
 from .skills import SkillsLoader
 from .subagents import SubagentRegistry, SubagentSpec
 from .team import MessageBus, TeammateManager
+from .tree_session import LlmSummarizer, TreeSessionManager
 from .tools import (
     EditFileTool,
     GlobTool,
@@ -60,6 +65,14 @@ class AgentApp:
         self.todos = TodoStore()
         self.team_bus = MessageBus(self.root / ".team" / "inbox")
         self.mcp = MCPClientManager(self.root / "mcp_servers.json")
+        self.tree = TreeSessionManager(
+            session_dir=self.root / "sessions",
+            cwd=str(self.workspace),
+            summarizer=LlmSummarizer(self.client, self.model),
+            compact_keep_messages=self.compact_keep_messages,
+        )
+        self.session_id = os.getenv("MY_AGENT_SESSION_ID") or self.tree.listSessions()[0]
+        self.tree.resumeSession(self.session_id)
 
         self.registry = self._build_registry()
         self.compactor = HistoryCompactor(
@@ -86,9 +99,9 @@ class AgentApp:
             system_prompt=self.system_prompt,
             max_tokens=self.max_tokens,
             on_usage=self.tokens.record,
-            compactor=self.compactor,
+            compactor=None,
         )
-        self.history: list[dict[str, Any]] = []
+        self.history: list[dict[str, Any]] = self.tree.buildModelContext(self.session_id)
 
     def _build_registry(self) -> ToolRegistry:
         registry = ToolRegistry()
@@ -162,14 +175,56 @@ class AgentApp:
         user_input: str,
         on_text_delta: Callable[[str], None] | None = None,
     ) -> str:
-        self.history.append({"role": "user", "content": user_input})
+        self.tree.append_message(self.session_id, {"role": "user", "content": user_input})
         self.memory.append_history("user", user_input)
-        reply = self.runner.step(self.history, on_text_delta=on_text_delta)
+        prompt_history = self.tree.buildModelContext(self.session_id)
+        reply = self.runner.step(
+            prompt_history,
+            on_text_delta=on_text_delta,
+            on_assistant_message=lambda content: self.tree.append_message(
+                self.session_id,
+                {"role": "assistant", "content": content},
+            ),
+            on_tool_call=lambda block: self.tree.append_tool_call(
+                self.session_id,
+                {"id": block.id, "name": block.name, "input": block.input},
+            ),
+            on_tool_result=lambda result: self.tree.append_tool_result(self.session_id, result),
+            history_provider=lambda: self.tree.buildModelContext(self.session_id),
+        )
         self.memory.append_history("assistant", reply)
+        self.history = self.tree.buildModelContext(self.session_id)
         return reply
 
     def compact_now(self) -> bool:
-        return self.compactor.compact(self.history)
+        return bool(
+            self.tree.compactActiveBranch(
+                self.session_id,
+                maxContextTokens=self.max_context_tokens,
+                keepRecentTokens=max(1, self.max_context_tokens // 4),
+                summarizer=LlmSummarizer(self.client, self.model),
+            )
+        )
+
+    def tree_view(self, filter_mode: str = "default") -> str:
+        return self.tree.render_tree(self.session_id, filter_mode=filter_mode)
+
+    def jump_to_entry(self, entry_id: str) -> None:
+        self.tree.jumpToEntry(self.session_id, entry_id)
+        self.history = self.tree.buildModelContext(self.session_id)
+
+    def fork_from_entry(self, entry_id: str) -> None:
+        self.tree.forkFromEntry(self.session_id, entry_id)
+        self.history = self.tree.buildModelContext(self.session_id)
+
+    def clone_active_branch(self) -> str:
+        new_session_id = self.tree.cloneActiveBranch(self.session_id)
+        self.session_id = new_session_id
+        self.history = self.tree.buildModelContext(self.session_id)
+        return new_session_id
+
+    def label_entry(self, entry_id: str, label: str) -> None:
+        self.tree.addLabel(self.session_id, entry_id, label)
 
     def close(self) -> None:
         self.mcp.close()
