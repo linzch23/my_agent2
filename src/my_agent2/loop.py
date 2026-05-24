@@ -72,7 +72,16 @@ class AgentApp:
             summarizer=LlmSummarizer(self.client, self.model),
             compact_keep_messages=self.compact_keep_messages,
         )
-        self.session_id = os.getenv("MY_AGENT_SESSION_ID") or self.tree.listSessions()[0]
+        custom_session_id = os.getenv("MY_AGENT_SESSION_ID")
+        existing = self.tree.listSessions()
+        if custom_session_id and custom_session_id not in existing:
+            self.session_id = self.tree.createSession(custom_session_id, cwd=str(self.workspace))
+        elif custom_session_id:
+            self.session_id = custom_session_id
+        elif existing:
+            self.session_id = existing[0]
+        else:
+            self.session_id = self.tree.createSession("default", cwd=str(self.workspace))
         self.tree.resumeSession(self.session_id)
 
         self.registry = self._build_registry()
@@ -92,8 +101,31 @@ class AgentApp:
                     self.compactor.compact_startup(unarchived)
                 except Exception as exc:
                     print(f"[warning] startup compaction failed: {exc}")
+
+        # SessionMemoryCommitter: bridges tree compaction → memory OS
+        from .session_memory_committer import SessionMemoryCommitter, LlmMemoryExtractor
+        self.memory.set_auto_link_client(self.client, self.model)
+        self.session_memory_committer = SessionMemoryCommitter(
+            tree=self.tree,
+            memory_store=self.memory,
+            extractor=LlmMemoryExtractor(self.client, self.model),
+        )
+
         context = ContextBuilder(self.root / "templates", self.skills, self.memory)
         self.system_prompt = context.build(workspace=self.workspace)
+
+        # RuntimeContextBuilder: per-turn memory recall
+        from .context_backend import LocalContextBackend
+        from .context import RuntimeContextBuilder
+        runtime_limit = int(os.getenv("MY_AGENT_RUNTIME_CONTEXT_LIMIT", "6"))
+        runtime_chars = int(os.getenv("MY_AGENT_RUNTIME_CONTEXT_MAX_CHARS", "12000"))
+        self.context_builder_obj = context  # keep reference to ContextBuilder instance
+        self.runtime_context_builder = RuntimeContextBuilder(
+            LocalContextBackend(self.memory),
+            limit=runtime_limit,
+            max_chars=runtime_chars,
+        )
+
         self.runner = AgentRunner(
             client=self.client,
             model=self.model,
@@ -170,6 +202,14 @@ class AgentApp:
                 runner_factory=make_runner,
             )
         )
+
+        # Context tools
+        from .tools.context import SearchContextTool, ReadContextTool, ListContextTool, ShowContextLinksTool
+        registry.register(SearchContextTool(self.memory))
+        registry.register(ReadContextTool(self.memory))
+        registry.register(ListContextTool(self.memory))
+        registry.register(ShowContextLinksTool(self.memory))
+
         return registry
 
     def ask(
@@ -179,6 +219,12 @@ class AgentApp:
         on_tool_call: Callable[[Any], None] | None = None,
         on_tool_result: Callable[[dict[str, str]], None] | None = None,
     ) -> str:
+        # Build runtime context from user input and rebuild system prompt
+        runtime_context = self.runtime_context_builder.build(user_input)
+        self.runner.system_prompt = self.context_builder_obj.build(
+            workspace=self.workspace, runtime_context=runtime_context,
+        )
+
         self.tree.append_message(self.session_id, {"role": "user", "content": user_input})
         self.memory.append_history("user", user_input)
         prompt_history = self.tree.buildModelContext(self.session_id)
@@ -209,10 +255,28 @@ class AgentApp:
         )
         self.memory.append_history("assistant", reply)
         self.history = self.tree.buildModelContext(self.session_id)
+
+        # auto-compact when context usage exceeds threshold
+        if self.tokens.should_compact(self.max_context_tokens, self.compact_threshold):
+            try:
+                self.compact_now()
+            except Exception:
+                pass
+
         return reply
 
     def compact_now(self) -> bool:
-        return bool(self._compact_active_branch())
+        compaction_id = self._compact_active_branch()
+        if compaction_id:
+            try:
+                archive_uri = self.session_memory_committer.commit_compaction(
+                    self.session_id, compaction_id
+                )
+                print(f"[memory] session archive: {archive_uri}")
+            except Exception as exc:
+                print(f"[warning] memory commit failed: {exc}")
+            return True
+        return False
 
     def _compact_active_branch(self) -> str | None:
         return self.tree.compactActiveBranch(

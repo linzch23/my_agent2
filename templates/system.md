@@ -18,6 +18,8 @@ Available skills:
 Always-active skill content:
 {{ active_skills or "(None)" }}
 
+{{ runtime_context or "(None)" }}
+
 Long-term memory:
 {{ memory }}
 

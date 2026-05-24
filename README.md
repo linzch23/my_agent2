@@ -3,6 +3,36 @@
 `my_agent2` 是一个本地运行的通用型 Python Agent，面向命令行工作流、工具调用、
 会话树管理、上下文压缩和多 Agent 协作场景。
 
+## 上下文与记忆架构
+
+my_agent2 采用多层上下文与记忆系统：
+
+- **TreeSession（树形会话）** — 追加式 JSONL 会话树，支持分支、跳转、分叉和克隆。原始会话数据的唯一事实来源。
+- **ContextFS（上下文文件系统）** — 持久化上下文/记忆对象存储，分为 L0（摘要）、L1（概览）和 L2（完整正文）三层。对象以 URI 寻址。
+- **MemoryGraph（记忆图谱）** — ContextFS URI 之间的轻量级链接索引（支持、矛盾、更新、相关、派生自）。
+- **RuntimeContextBuilder（运行时上下文构建器）** — 每轮调用前搜索 ContextFS 并将相关记忆注入模型上下文。
+- **SessionMemoryCommitter（会话记忆提交器）** — 连接树压缩与长期记忆的桥梁，由 `/compact` 触发。
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `MY_AGENT_RUNTIME_CONTEXT_LIMIT` | `6` | 运行时上下文搜索返回条数上限 |
+| `MY_AGENT_RUNTIME_CONTEXT_MAX_CHARS` | `12000` | 运行时上下文输出字符预算 |
+| `MY_AGENT_CONTEXT_BACKEND` | `local` | 上下文后端选择（MVP 仅 `local`） |
+| `MY_AGENT_AUTO_LINK_FANOUT` | `5` | 自动链接候选记忆数 |
+| `MY_AGENT_AUTO_LINK_MIN_CONFIDENCE` | `0.3` | 自动链接最低置信度 |
+
+### 上下文工具
+
+| 工具 | 说明 |
+|---|---|
+| `search_context` | 按关键词搜索结构化记忆（覆盖 L0/L1/L2） |
+| `read_context` | 按 URI 读取上下文对象 |
+| `list_context` | 列出指定 URI 前缀下的对象 |
+| `show_context_links` | 查看记忆图谱链接关系 |
+| `remember` | 将持久化笔记写入长期记忆（已升级） |
+
 它目前支持：
 
 - DeepSeek、Anthropic、OpenAI-compatible 三类模型接口

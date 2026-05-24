@@ -7,7 +7,8 @@ HELP = """可用命令：
   /help     显示这份帮助
   /tools    列出已注册工具
   /todos    查看当前任务列表
-  /memory   查看长期记忆
+  /memory   查看 Memory OS（结构化长期记忆）
+  /context  查看最近 ContextObject
   /mcp      查看 MCP server 和工具状态
   /compact  立即压缩当前会话上下文
   /team     查看持久队友
@@ -49,7 +50,17 @@ def main() -> None:
                 print(app.todos.render() + "\n")
                 continue
             if user_input == "/memory":
-                print(app.memory.read_memory() + "\n")
+                print(app.memory.render_memory() + "\n")
+                continue
+            if user_input == "/context":
+                results = app.memory.list_context(limit=20)
+                if not results:
+                    print("(No context objects.)\n")
+                else:
+                    for r in results:
+                        print(f"- {r['uri']} [{r.get('context_type', '?')}] {r.get('title', '?')} "
+                              f"trust={r.get('trust_score', 0):.1f}")
+                    print()
                 continue
             if user_input == "/mcp":
                 print(app.mcp.report() + "\n")

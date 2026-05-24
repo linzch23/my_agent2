@@ -77,16 +77,29 @@ class UpdateTodosTool(Tool):
 
 class RememberTool(Tool):
     name = "remember"
-    description = "Append an important durable note to long-term memory."
+    description = "Append a durable note to long-term memory. category: preferences|events|decisions|constraints|cases|patterns|tools|skills|entities|open_tasks|profile"
 
     def __init__(self, memory_store) -> None:
         self.memory_store = memory_store
 
     @property
     def parameters(self) -> dict:
-        return object_schema({"note": {"type": "string", "minLength": 1}}, required=["note"])
+        return object_schema({
+            "note": {"type": "string", "minLength": 1},
+            "category": {"type": "string"},
+            "title": {"type": "string"},
+        }, required=["note"])
 
-    def execute(self, note: str) -> str:
+    def execute(self, note: str, category: str = "events", title: str | None = None) -> str:
+        valid = {"profile", "preferences", "entities", "events",
+                 "decisions", "constraints", "open_tasks",
+                 "cases", "patterns", "tools", "skills"}
+        if category not in valid:
+            return f"Error: invalid category '{category}'. Valid: {', '.join(sorted(valid))}"
+        if hasattr(self.memory_store, "remember_note"):
+            uri = self.memory_store.remember_note(note, category=category, title=title)
+            return f"Remembered: {uri}"
+        # legacy fallback
         self.memory_store.append_memory(note)
         return "Remembered."
 

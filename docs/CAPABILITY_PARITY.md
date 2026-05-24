@@ -16,7 +16,7 @@
 | 技能加载器 | 已完成 | `src/my_agent2/skills.py`、`tools/state.py` | 支持嵌套 `SKILL.md`、技能摘要、`always: true`，并在依赖未安装时使用 fallback frontmatter 解析。 |
 | 内置技能 | 部分完成 | `skills/summarize/SKILL.md` | 当前只内置通用 summarization 技能。 |
 | system prompt 构造 | 已完成 | `src/my_agent2/context.py`、`templates/system.md` | 注入 memory、user profile 和 skills。 |
-| 长期记忆 | 已完成 | `src/my_agent2/memory.py` | 写入 `memory/MEMORY.md`。 |
+| 长期记忆 | 已完成 | `src/my_agent2/memory.py`、`contextfs.py`、`memory_graph.py` | ContextFS-backed Memory OS with structured memory objects, URI-addressable with L0/L1/L2 layers, MemoryGraph relationship indexing, session archiving from tree compaction, runtime context injection per model call. Legacy MEMORY.md compatibility preserved. |
 | 用户画像记忆 | 已完成 | `templates/USER.md`、`MemoryStore.read_user/write_user` | 由 compaction 更新。 |
 | 情景记忆 | 已完成 | `MemoryStore.append_episode` | 使用 UTC+8 日期文件。 |
 | 原始历史日志 | 已完成 | `MemoryStore.append_history` | 记录用户输入和最终 assistant 输出。 |
