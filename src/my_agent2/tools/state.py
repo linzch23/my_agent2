@@ -84,9 +84,17 @@ class RememberTool(Tool):
 
     @property
     def parameters(self) -> dict:
-        return object_schema({"note": {"type": "string", "minLength": 1}}, required=["note"])
+        return object_schema({
+            "note": {"type": "string", "minLength": 1},
+            "category": {"type": "string"},
+            "title": {"type": "string"},
+        }, required=["note"])
 
-    def execute(self, note: str) -> str:
+    def execute(self, note: str, category: str = "events", title: str | None = None) -> str:
+        if hasattr(self.memory_store, "remember_note"):
+            uri = self.memory_store.remember_note(note, category=category, title=title)
+            return f"Remembered: {uri}"
+        # legacy fallback
         self.memory_store.append_memory(note)
         return "Remembered."
 

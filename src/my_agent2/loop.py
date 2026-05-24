@@ -180,6 +180,14 @@ class AgentApp:
                 runner_factory=make_runner,
             )
         )
+
+        # Context tools
+        from .tools.context import SearchContextTool, ReadContextTool, ListContextTool, ShowContextLinksTool
+        registry.register(SearchContextTool(self.memory))
+        registry.register(ReadContextTool(self.memory))
+        registry.register(ListContextTool(self.memory))
+        registry.register(ShowContextLinksTool(self.memory))
+
         return registry
 
     def ask(
