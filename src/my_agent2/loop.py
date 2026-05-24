@@ -92,6 +92,16 @@ class AgentApp:
                     self.compactor.compact_startup(unarchived)
                 except Exception as exc:
                     print(f"[warning] startup compaction failed: {exc}")
+
+        # SessionMemoryCommitter: bridges tree compaction → memory OS
+        from .session_memory_committer import SessionMemoryCommitter, LlmMemoryExtractor
+        self.memory.set_auto_link_client(self.client, self.model)
+        self.session_memory_committer = SessionMemoryCommitter(
+            tree=self.tree,
+            memory_store=self.memory,
+            extractor=LlmMemoryExtractor(self.client, self.model),
+        )
+
         context = ContextBuilder(self.root / "templates", self.skills, self.memory)
         self.system_prompt = context.build(workspace=self.workspace)
         self.runner = AgentRunner(
@@ -199,7 +209,17 @@ class AgentApp:
         return reply
 
     def compact_now(self) -> bool:
-        return bool(self._compact_active_branch())
+        compaction_id = self._compact_active_branch()
+        if compaction_id:
+            try:
+                archive_uri = self.session_memory_committer.commit_compaction(
+                    self.session_id, compaction_id
+                )
+                print(f"[memory] session archive: {archive_uri}")
+            except Exception as exc:
+                print(f"[warning] memory commit failed: {exc}")
+            return True
+        return False
 
     def _compact_active_branch(self) -> str | None:
         return self.tree.compactActiveBranch(
