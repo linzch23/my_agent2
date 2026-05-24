@@ -21,7 +21,7 @@ class LlmMemoryExtractor:
         try:
             response = self.client.create_message(
                 model=self.model, max_tokens=self.max_tokens,
-                system="You extract structured long-term memory operations from conversation summaries. Output ONLY valid JSON.",
+                system="你从对话摘要中提取结构化长期记忆。只输出合法 JSON，不要其他文字。所有字段使用中文。",
                 messages=[{"role": "user", "content": prompt}], tools=[],
             )
             text = "\n".join(
@@ -105,36 +105,47 @@ class SessionMemoryCommitter:
 
 
 def _extraction_prompt(session_uri: str, summary: str, metadata: dict[str, Any]) -> str:
-    return f"""Extract durable long-term memory operations from this conversation summary.
+    essential = {
+        "session_id": metadata.get("session_id", ""),
+        "compaction_id": metadata.get("compaction_id", ""),
+        "token_estimate_before": metadata.get("tokenEstimateBefore", 0),
+        "token_estimate_after": metadata.get("tokenEstimateAfter", 0),
+    }
+    return f"""从以下对话摘要中提取值得长期保留的记忆。
 
-Session: {session_uri}
-Summary:
+会话: {session_uri}
+基本信息: {json.dumps(essential, ensure_ascii=False)}
+
+摘要:
 {summary}
 
-Output a JSON object with an "operations" array. Each operation:
+输出一个 JSON 对象，包含 "operations" 数组。每条 operation 格式:
 {{
   "action": "upsert" | "append" | "quarantine",
   "category": "profile" | "preferences" | "entities" | "events" | "decisions" | "constraints" | "open_tasks" | "cases" | "patterns" | "tools" | "skills",
-  "key": "stable-slug-for-dedup",
-  "title": "short title",
-  "abstract": "one sentence summary",
-  "overview": "injectable overview (2-4 sentences)",
-  "content": "full detail body",
-  "reason": "why this belongs in long-term memory",
+  "key": "稳定去重标识（英文slug）",
+  "title": "简短中文标题",
+  "abstract": "一句话中文摘要",
+  "overview": "可注入上下文的中文概述（2-4句）",
+  "content": "完整中文正文",
+  "reason": "为什么值得长期保留",
   "trust_score": 0.0-1.0,
-  "tags": ["optional-tags"],
+  "tags": ["可选标签"],
   "links": [
     {{
       "target_uri": "mem://...",
       "relation": "supports|contradicts|updates|related|derived_from|uses_tool",
       "confidence": 0.0-1.0,
-      "reason": "why these are related"
+      "reason": "关联原因"
     }}
   ]
 }}
 
-Only include items that have durable value beyond this session. Skip transient debugging details.
-Output ONLY the JSON object, no other text."""
+重要规则:
+- 如果用户明确改变了之前的偏好/决策（如从暗色主题改为亮色），使用 action="upsert" + 相同的 key，并在 links 中用 "updates" 关联旧记忆。
+- 只提取有跨会话价值的长期信息，跳过临时调试细节。
+- 所有文本字段使用中文。
+- 只输出 JSON 对象，不要其他文字。"""
 
 
 def _parse_extraction_json(text: str) -> list[dict[str, Any]]:

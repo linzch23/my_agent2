@@ -135,18 +135,61 @@ class MemoryStore:
         slug = re.sub(r"\s+", "-", slug)[:80]
         now = datetime.now(UTC8)
         uri = _operation_to_uri(category, slug, now)
+
+        # 检查是否已存在同 category 的记忆，如有则标记为 updates
+        existing = self._cfs.list_objects(prefix="mem://", limit=200)
+        same_category = [
+            e for e in existing
+            if e.get("uri", "").startswith(_category_prefix(category))
+            and e.get("status") == "active"
+        ]
+        old_uri = None
+        for e in same_category:
+            e_slug = e.get("uri", "").rstrip("/").split("/")[-1]
+            # 相同 slug = 同一主题的更新
+            if e_slug == slug and e.get("uri") != uri:
+                old_uri = e.get("uri")
+                # 标记旧记忆为 archived
+                try:
+                    e["status"] = "archived"
+                    e["metadata"]["superseded_by"] = uri
+                    old_content = self._cfs.read_object(old_uri, layer="full")
+                    self._cfs.write_object(
+                        type("_O", (), {
+                            "uri": old_uri, "context_type": "memory",
+                            "title": e.get("title", ""), "abstract": e.get("abstract", ""),
+                            "overview": e.get("overview", ""),
+                            "content_path": e.get("content_path", ""),
+                            "source": e.get("source", "manual"),
+                            "trust_score": e.get("trust_score", 0.5),
+                            "sensitivity": e.get("sensitivity", "public"),
+                            "status": "archived", "tags": e.get("tags", []),
+                            "metadata": e.get("metadata", {}),
+                            "digest": "", "created_at": e.get("created_at", ""),
+                            "updated_at": now.isoformat(),
+                        })(),
+                        old_content.get("content", ""),
+                    )
+                except Exception:
+                    pass
+                break
+
         content_rel = uri.replace("://", "/") + ".md"
+        tags = [category]
         obj = ContextObject(
             uri=uri, context_type="memory", title=title,
             abstract=note[:200], overview=note,
             content_path=content_rel,
             source="manual", trust_score=0.8, sensitivity="public",
-            status="active", tags=[category],
+            status="active", tags=tags,
             metadata={"written_by": "remember_tool"}, digest="",
             created_at=now.isoformat(), updated_at="",
         )
         self._cfs.write_object(obj, note)
         self._cfs.append_diff({"action": "remember", "uri": uri, "reason": "manual remember"})
+        # 如果有旧记忆，添加 updates 链接
+        if old_uri:
+            self._graph.add_link(uri, old_uri, "updates", 0.9, f"用户更新了 {category} 偏好")
         if self._auto_link_client:
             self._graph.auto_link(uri, self._cfs, self._auto_link_client, self._auto_link_model)
         # legacy compatibility
@@ -245,7 +288,7 @@ class MemoryStore:
         return self._graph.neighbors(uri, limit=limit)
 
     def render_memory(self) -> str:
-        lines = ["# Memory OS"]
+        lines = ["# Memory OS（结构化长期记忆）"]
         categories = {
             "profile": "mem://user/profile",
             "preferences": "mem://user/preferences/",
@@ -255,16 +298,22 @@ class MemoryStore:
             "cases": "mem://agent/cases/",
             "patterns": "mem://agent/patterns/",
         }
+        has_items = False
         for name, prefix in categories.items():
             items = self._cfs.list_objects(prefix=prefix, limit=20)
             if items:
+                has_items = True
                 lines.append(f"\n## {name.title()}")
                 for item in items:
                     lines.append(f"- [{item.get('title', '?')}]({item.get('uri', '')}) "
                                  f"trust={item.get('trust_score', 0):.1f}")
+        if not has_items:
+            lines.append("\n(暂无结构化记忆，通过对话中的 remember 或 /compact 来创建)")
         # legacy fallback
         if self.memory_path.exists():
-            lines.append(f"\n## Legacy\n{self.read_memory()}")
+            legacy = self.read_memory()
+            if legacy.strip() != "# Long-term Memory":
+                lines.append(f"\n---\n## Legacy（旧版 MEMORY.md 兼容保留）\n{legacy}")
         return "\n".join(lines)
 
 
@@ -346,6 +395,19 @@ def _operation_to_uri(category: str, key: str, now: Any) -> str:
     if category in ("cases", "patterns", "tools", "skills"):
         return f"mem://agent/{category}/{slug}"
     return f"mem://user/events/{date_part}/{slug}"
+
+
+def _category_prefix(category: str) -> str:
+    """Return the URI prefix for a given memory category."""
+    if category in ("profile",):
+        return "mem://user/profile"
+    if category in ("preferences", "entities", "events"):
+        return f"mem://user/{category}/"
+    if category in ("decisions", "constraints", "open_tasks"):
+        return f"mem://project/{category}/"
+    if category in ("cases", "patterns", "tools", "skills"):
+        return f"mem://agent/{category}/"
+    return f"mem://user/events/"
 
 
 def _write_quarantine(cfs: Any, op: dict[str, Any], reason: str) -> None:
