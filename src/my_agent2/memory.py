@@ -136,63 +136,65 @@ class MemoryStore:
         now = datetime.now(UTC8)
         uri = _operation_to_uri(category, slug, now)
 
-        # 检查是否已存在同 category 的记忆，如有则标记为 updates
-        existing = self._cfs.list_objects(prefix="mem://", limit=200)
-        same_category = [
-            e for e in existing
-            if e.get("uri", "").startswith(_category_prefix(category))
-            and e.get("status") == "active"
-        ]
+        # 搜索同 category 的已有记忆，按 bigram 重叠判断是否需要更新
         old_uri = None
-        for e in same_category:
-            e_slug = e.get("uri", "").rstrip("/").split("/")[-1]
-            # 相同 slug = 同一主题的更新
-            if e_slug == slug and e.get("uri") != uri:
-                old_uri = e.get("uri")
-                # 标记旧记忆为 archived
-                try:
-                    e["status"] = "archived"
-                    e["metadata"]["superseded_by"] = uri
-                    old_content = self._cfs.read_object(old_uri, layer="full")
-                    self._cfs.write_object(
-                        type("_O", (), {
-                            "uri": old_uri, "context_type": "memory",
-                            "title": e.get("title", ""), "abstract": e.get("abstract", ""),
-                            "overview": e.get("overview", ""),
-                            "content_path": e.get("content_path", ""),
-                            "source": e.get("source", "manual"),
-                            "trust_score": e.get("trust_score", 0.5),
-                            "sensitivity": e.get("sensitivity", "public"),
-                            "status": "archived", "tags": e.get("tags", []),
-                            "metadata": e.get("metadata", {}),
-                            "digest": "", "created_at": e.get("created_at", ""),
-                            "updated_at": now.isoformat(),
-                        })(),
-                        old_content.get("content", ""),
-                    )
-                except Exception:
-                    pass
+        prefix = _category_prefix(category)
+        existing = self._cfs.list_objects(prefix=prefix, limit=100)
+        best_overlap = 0
+        for e in existing:
+            if e.get("uri") == uri:
+                old_uri = uri
                 break
+            if e.get("status") != "active":
+                continue
+            e_title = e.get("title", "")
+            overlap = _count_bigram_overlap(title.lower(), e_title.lower())
+            if overlap > best_overlap:
+                best_overlap = overlap
+                old_uri = e.get("uri")
+
+        # 如果有相似的旧记忆（bigram 重叠 ≥2），标记为 archived
+        if old_uri and old_uri != uri and best_overlap >= 2:
+            try:
+                old_entry = self._cfs.read_object(old_uri, layer="auto")
+                old_obj = ContextObject(
+                    uri=old_uri, context_type="memory",
+                    title=old_entry.get("title", ""),
+                    abstract=old_entry.get("abstract", ""),
+                    overview=old_entry.get("overview", ""),
+                    content_path=old_entry.get("content_path", ""),
+                    source=old_entry.get("source", "manual"),
+                    trust_score=old_entry.get("trust_score", 0.5),
+                    sensitivity=old_entry.get("sensitivity", "public"),
+                    status="archived",
+                    tags=old_entry.get("tags", []),
+                    metadata={**old_entry.get("metadata", {}), "superseded_by": uri},
+                    digest="",
+                    created_at=old_entry.get("created_at", ""),
+                    updated_at=now.isoformat(),
+                )
+                old_content = self._cfs.read_object(old_uri, layer="full")
+                self._cfs.write_object(old_obj, old_content.get("content", ""))
+            except Exception:
+                pass
 
         content_rel = uri.replace("://", "/") + ".md"
-        tags = [category]
         obj = ContextObject(
             uri=uri, context_type="memory", title=title,
             abstract=note[:200], overview=note,
             content_path=content_rel,
             source="manual", trust_score=0.8, sensitivity="public",
-            status="active", tags=tags,
+            status="active", tags=[category],
             metadata={"written_by": "remember_tool"}, digest="",
             created_at=now.isoformat(), updated_at="",
         )
         self._cfs.write_object(obj, note)
         self._cfs.append_diff({"action": "remember", "uri": uri, "reason": "manual remember"})
-        # 如果有旧记忆，添加 updates 链接
-        if old_uri:
-            self._graph.add_link(uri, old_uri, "updates", 0.9, f"用户更新了 {category} 偏好")
+        if old_uri and old_uri != uri:
+            self._graph.add_link(uri, old_uri, "updates", 0.9,
+                                 f"bigram_overlap={best_overlap}")
         if self._auto_link_client:
             self._graph.auto_link(uri, self._cfs, self._auto_link_client, self._auto_link_model)
-        # legacy compatibility
         self.append_memory(f"[{category}] {note}")
         return uri
 
@@ -408,6 +410,13 @@ def _category_prefix(category: str) -> str:
     if category in ("cases", "patterns", "tools", "skills"):
         return f"mem://agent/{category}/"
     return f"mem://user/events/"
+
+
+def _count_bigram_overlap(title_a: str, title_b: str) -> int:
+    """Count overlapping character bigrams between two titles."""
+    a_bigrams = {title_a[i:i + 2] for i in range(len(title_a) - 1)} if len(title_a) >= 2 else set()
+    b_bigrams = {title_b[i:i + 2] for i in range(len(title_b) - 1)} if len(title_b) >= 2 else set()
+    return len(a_bigrams & b_bigrams)
 
 
 def _write_quarantine(cfs: Any, op: dict[str, Any], reason: str) -> None:

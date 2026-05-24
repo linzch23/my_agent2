@@ -164,5 +164,46 @@ def _parse_extraction_json(text: str) -> list[dict[str, Any]]:
         start = text.index("{")
         end = text.rindex("}") + 1
         text = text[start:end]
-    data = json.loads(text)
-    return data.get("operations", [])
+    try:
+        data = json.loads(text)
+        return data.get("operations", [])
+    except json.JSONDecodeError:
+        pass
+    # Fallback: try to parse each operation individually from the array
+    return _parse_operations_fallback(text)
+
+
+def _parse_operations_fallback(text: str) -> list[dict[str, Any]]:
+    """Try to salvage individual operations from a malformed JSON response."""
+    ops: list[dict[str, Any]] = []
+    # Try to find array brackets
+    if "[" in text and "]" in text:
+        arr_start = text.index("[")
+        arr_end = text.rindex("]") + 1
+    elif "{" in text and "}" in text:
+        arr_start = text.index("{")
+        arr_end = text.rindex("}") + 1
+    else:
+        return []
+    raw = text[arr_start:arr_end]
+    # Try to split on "}, {" to get individual operation strings
+    # and parse each one separately
+    depth = 0
+    start = 0
+    for i, ch in enumerate(raw):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    op = json.loads(raw[start:i + 1])
+                    if isinstance(op, dict) and "action" in op:
+                        ops.append(op)
+                    elif isinstance(op, list):
+                        ops.extend(op)
+                except json.JSONDecodeError:
+                    continue
+    return ops

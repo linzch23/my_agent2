@@ -54,6 +54,13 @@ class ContextFS:
             self.index_path.write_text("", encoding="utf-8")
         if not self.diffs_path.exists():
             self.diffs_path.write_text("", encoding="utf-8")
+        self._index_cache: list[dict[str, Any]] = self._load_index()
+
+    def _load_index(self) -> list[dict[str, Any]]:
+        if not self.index_path.exists():
+            return []
+        lines = self.index_path.read_text(encoding="utf-8").splitlines()
+        return [json.loads(line) for line in lines if line.strip()]
 
     # ---- write ----
 
@@ -76,20 +83,20 @@ class ContextFS:
         return obj.uri
 
     def _upsert_index(self, obj: ContextObject) -> None:
-        lines = self._read_index_lines()
         data = asdict(obj)
         found = False
-        for i, line in enumerate(lines):
-            if not line.strip():
-                continue
-            entry = json.loads(line)
+        for i, entry in enumerate(self._index_cache):
             if entry.get("uri") == obj.uri:
-                lines[i] = json.dumps(data, ensure_ascii=False)
+                self._index_cache[i] = data
                 found = True
                 break
         if not found:
-            lines.append(json.dumps(data, ensure_ascii=False))
-        self.index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            self._index_cache.append(data)
+        # write through to disk
+        self.index_path.write_text(
+            "\n".join(json.dumps(e, ensure_ascii=False) for e in self._index_cache) + "\n",
+            encoding="utf-8",
+        )
 
     # ---- read ----
 
@@ -182,16 +189,10 @@ class ContextFS:
     # ---- internals ----
 
     def _read_index_lines(self) -> list[str]:
-        if not self.index_path.exists():
-            return []
-        text = self.index_path.read_text(encoding="utf-8")
-        return text.splitlines()
+        return [json.dumps(e, ensure_ascii=False) for e in self._index_cache]
 
     def _find_index_entry(self, uri: str) -> dict[str, Any] | None:
-        for line in self._read_index_lines():
-            if not line.strip():
-                continue
-            entry = json.loads(line)
+        for entry in self._index_cache:
             if entry.get("uri") == uri:
                 return entry
         return None

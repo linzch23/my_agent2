@@ -237,6 +237,14 @@ class AgentApp:
         )
         self.memory.append_history("assistant", reply)
         self.history = self.tree.buildModelContext(self.session_id)
+
+        # auto-compact when context usage exceeds threshold
+        if self.tokens.should_compact(self.max_context_tokens, self.compact_threshold):
+            try:
+                self.compact_now()
+            except Exception:
+                pass
+
         return reply
 
     def compact_now(self) -> bool:

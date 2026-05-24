@@ -26,12 +26,10 @@ class SearchContextTool(Tool):
             return "(No results.)"
         lines = []
         for r in results:
+            overview = r.get('overview', '') or r.get('abstract', '')
             lines.append(
-                f"- {r['uri']}\n"
-                f"  Title: {r.get('title', '?')}\n"
-                f"  Trust: {r.get('trust_score', '?')}\n"
-                f"  Type: {r.get('context_type', '?')}\n"
-                f"  Abstract: {r.get('abstract', '')}"
+                f"- {r['uri']} | trust={r.get('trust_score', '?')} | type={r.get('context_type', '?')}\n"
+                f"  {r.get('title', '?')}: {overview}"
             )
         return "\n".join(lines)
 
