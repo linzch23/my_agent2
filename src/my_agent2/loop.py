@@ -72,7 +72,11 @@ class AgentApp:
             summarizer=LlmSummarizer(self.client, self.model),
             compact_keep_messages=self.compact_keep_messages,
         )
-        self.session_id = os.getenv("MY_AGENT_SESSION_ID") or self.tree.listSessions()[0]
+        custom_session_id = os.getenv("MY_AGENT_SESSION_ID")
+        if custom_session_id and custom_session_id not in self.tree.listSessions():
+            self.session_id = self.tree.createSession(custom_session_id, cwd=str(self.workspace))
+        else:
+            self.session_id = custom_session_id or self.tree.listSessions()[0]
         self.tree.resumeSession(self.session_id)
 
         self.registry = self._build_registry()
