@@ -1,0 +1,68 @@
+uid=1_0 RootWebArea "my_agent2 Workbench" url="http://127.0.0.1:8765/"
+  uid=1_1 complementary "Global navigation"
+    uid=1_2 button "m2" description="Agent"
+    uid=1_3 button "+" description="New task"
+    uid=1_4 button "P" description="Panels"
+  uid=1_5 banner
+    uid=1_6 StaticText "Fallback"
+    uid=1_7 StaticText "4 steps"
+    uid=1_8 navigation "Workbench tabs"
+      uid=1_9 button "Agent"
+      uid=1_10 button "Changes"
+      uid=1_11 button "Preview"
+      uid=1_12 button "Code"
+      uid=1_13 button "Tools"
+    uid=1_14 button "Agent 3"
+    uid=1_15 button "Tree" description="Session tree"
+    uid=1_16 button "Trace" description="Trace inspector"
+    uid=1_17 button "Search"
+    uid=1_18 button "Settings"
+    uid=1_19 button "Running" description="Run status"
+  uid=1_20 main
+    uid=1_21 heading "Implement Coding Agent Web UI" level="2"
+    uid=1_22 StaticText "2 done · 1 running · 4 steps"
+    uid=1_23 button "Collapse"
+    uid=1_24 button "Expand"
+    uid=1_25 region "Run timeline"
+      uid=1_26 button "1 Read product direction 09:41 Captured the target: OpenHands / Replit Agent / Devin style workflow. done" expandable expanded
+      uid=1_27 StaticText "The default view should emphasize run execution and workbench state. Session Tree and raw trace stay behind explicit controls."
+      uid=1_28 DisclosureTriangle "read_file done" expandable
+      uid=1_29 button "2 Design shell layout 09:47 Replaced chat-first structure with a task-first command surface. done" expandable expanded
+      uid=1_30 StaticText "TopBar owns task identity and navigation. Timeline owns agent execution. Workbench owns files, preview, code, and tool records."
+      uid=1_31 button "3 Create run timeline 09:52 Rendering collapsible steps with status, tool output, and compact evidence. running" expandable expanded
+      uid=1_32 StaticText "Mock RunStep data is used for this version. The API-backed build maps JSONL message/tool entries into the same shape."
+      uid=1_33 DisclosureTriangle "edit_file running" expandable expanded
+      uid=1_34 StaticText "frontend/index.html
+frontend/styles.css
+frontend/app.js
+
+Status: replacing static prototype."
+      uid=1_35 button "4 Wire hidden tree and inspector next Keep jump / fork / label and trace details off the default screen. pending" expandable
+    uid=1_36 region "Run metadata"
+      uid=1_37 StaticText "OK"
+      uid=1_38 StaticText "Mock fallback data source"
+      uid=1_39 StaticText "T"
+      uid=1_40 StaticText "Waiting for latest record"
+    uid=1_41 textbox "Make, test, iterate..." multiline
+    uid=1_42 button "+" description="Attach"
+    uid=1_43 button "Select" description="Select area"
+    uid=1_44 button "Economy"
+    uid=1_45 checkbox "Plan"
+    uid=1_46 StaticText "Plan"
+    uid=1_47 button "Send"
+  uid=1_48 complementary
+    uid=1_49 heading "Agent" level="2"
+    uid=1_50 StaticText "current run workspace"
+    uid=1_51 button "Open"
+    uid=1_52 StaticText "Session"
+    uid=1_53 StaticText "mock"
+    uid=1_54 StaticText "Steps"
+    uid=1_55 StaticText "4"
+    uid=1_56 StaticText "Changed"
+    uid=1_57 StaticText "4"
+    uid=1_58 StaticText "Tools"
+    uid=1_59 StaticText "3"
+    uid=1_60 heading "Current Step" level="3"
+    uid=1_61 StaticText "Rendering collapsible steps with status, tool output, and compact evidence."
+    uid=1_62 heading "Data Source" level="3"
+    uid=1_63 StaticText "Mock fallback data."

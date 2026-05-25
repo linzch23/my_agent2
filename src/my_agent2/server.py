@@ -98,6 +98,12 @@ def _handler_factory(state: WebState):
                     with state.lock:
                         self._send_json(state.app.tree.debugBuildModelContext(state.app.session_id))
                     return
+                if path == "/api/context":
+                    prefix = query.get("prefix", [""])[0]
+                    limit = int(query.get("limit", ["200"])[0])
+                    with state.lock:
+                        self._send_json({"objects": state.app.memory.list_context(prefix=prefix, limit=limit)})
+                    return
                 if path == "/api/tools":
                     with state.lock:
                         self._send_json({"tools": state.app.registry.definitions()})

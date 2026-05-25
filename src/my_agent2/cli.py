@@ -10,6 +10,8 @@ HELP = """可用命令：
   /memory   查看 Memory OS（结构化长期记忆）
   /context  查看最近 ContextObject
   /mcp      查看 MCP server 和工具状态
+  /skills   列出已安装的 Skills
+  /skill NAME 显示指定 Skill 的详细内容
   /compact  立即压缩当前会话上下文
   /team     查看持久队友
   /inbox    读取 lead inbox
@@ -64,6 +66,19 @@ def main() -> None:
                 continue
             if user_input == "/mcp":
                 print(app.mcp.report() + "\n")
+                continue
+            if user_input == "/skills":
+                print(app.skills.summary())
+                print()
+                continue
+            if user_input.startswith("/skill"):
+                parts = user_input.split(maxsplit=1)
+                if len(parts) < 2:
+                    print("用法: /skill NAME")
+                else:
+                    name = parts[1].strip()
+                    print(app.skills.load(name))
+                print()
                 continue
             if user_input == "/compact":
                 print(("已压缩当前上下文。" if app.compact_now() else "当前没有需要压缩的内容。") + "\n")

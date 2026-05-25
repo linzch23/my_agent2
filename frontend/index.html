@@ -3,141 +3,65 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>my_agent2 Workbench</title>
+    <title>my_agent2 Trust Console</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-shell">
-      <aside class="app-rail" aria-label="Global navigation">
-        <button class="rail-button active" title="Agent">m2</button>
-        <button class="rail-button" title="New task">+</button>
-        <div class="rail-spacer"></div>
-        <button class="rail-button" title="Panels">P</button>
+      <aside class="user-nav-panel" aria-label="Navigation">
+        <header class="user-nav-head">
+          <p id="side-nav-eyebrow" class="eyebrow">Navigation</p>
+          <h2 id="side-nav-title">消息定位</h2>
+          <div class="side-nav-tabs" aria-label="Navigation mode">
+            <button class="side-nav-tab active" data-nav-mode="messages" type="button">消息列</button>
+            <button class="side-nav-tab" data-nav-mode="sessions" type="button">历史会话</button>
+          </div>
+        </header>
+        <nav id="user-message-nav" class="user-message-nav" aria-label="Side navigation"></nav>
       </aside>
 
-      <header class="topbar">
-        <div class="usage-cluster" aria-label="Session status">
-          <span id="usage-label" class="usage-label">Session</span>
-          <span class="usage-meter"><span id="usage-meter-fill"></span></span>
-          <span id="usage-percent" class="usage-percent">0 steps</span>
-        </div>
-
-        <div class="task-title">
-          <div class="task-mark">m2</div>
-          <div class="task-copy">
-            <h1 id="task-name">Implement Coding Agent Web UI</h1>
-            <p id="task-meta">mock run · local workspace</p>
-          </div>
-        </div>
-
-        <nav class="top-tabs" aria-label="Workbench tabs">
-          <button class="top-tab active" data-tab="agent">Agent</button>
-          <button class="top-tab" data-tab="changes">Changes</button>
-          <button class="top-tab" data-tab="preview">Preview</button>
-          <button class="top-tab" data-tab="code">Code</button>
-          <button class="top-tab" data-tab="tools">Tools</button>
-        </nav>
-
-        <div class="top-actions">
-          <button class="agent-badge" type="button">Agent <span id="agent-count">0</span></button>
-          <button id="open-tree" class="icon-action" title="Session tree">Tree</button>
-          <button id="open-inspector" class="icon-action" title="Trace inspector">Trace</button>
-          <button class="icon-action" title="Search">Search</button>
-          <button class="icon-action" title="Settings">Settings</button>
-          <button id="run-status" class="status-button running" title="Run status">
-            <span></span> Running
-          </button>
-        </div>
-      </header>
-
-      <main class="run-panel">
-        <section class="run-header">
+      <main class="left-pane" aria-label="Agent conversation and session tree">
+        <header class="app-header">
           <div>
-            <h2 id="visible-task-title">Run Timeline</h2>
-            <p id="run-summary">0 steps</p>
+            <p class="eyebrow">my_agent2</p>
+            <h1> Agent 工作台</h1>
           </div>
-          <div class="run-controls">
-            <button id="collapse-all">Collapse</button>
-            <button id="expand-all">Expand</button>
+          <div class="header-meta">
+            <span id="connection-state">loading</span>
+            <span id="session-label">session</span>
+            <button id="new-session-button" class="header-action" type="button">新会话</button>
           </div>
+        </header>
+
+        <section class="mode-tabs" aria-label="Left pane mode">
+          <button class="mode-tab active" data-left-mode="chat" type="button">对话</button>
+          <button class="mode-tab" data-left-mode="tree" type="button">树状结构</button>
         </section>
 
-        <section id="timeline" class="timeline" aria-label="Run timeline"></section>
-
-        <section class="run-metadata" aria-label="Run metadata">
-          <div class="metadata-row checkpoint">
-            <span class="metadata-icon">OK</span>
-            <span id="metadata-source">Loading session data</span>
-          </div>
-          <div class="metadata-row worked">
-            <span class="metadata-icon">T</span>
-            <span id="metadata-updated">Waiting for latest record</span>
-          </div>
-        </section>
+        <section id="chat-view" class="left-view active" aria-label="Conversation"></section>
+        <section id="tree-view" class="left-view" aria-label="Session tree"></section>
 
         <form id="composer" class="composer">
-          <textarea id="composer-input" rows="3" placeholder="Make, test, iterate..."></textarea>
-          <div class="composer-toolbar">
-            <div class="composer-left-actions">
-              <button type="button" id="attach-button" title="Attach">+</button>
-              <button type="button" title="Select area">Select</button>
-            </div>
-            <div class="composer-right-actions">
-              <button type="button" class="economy-button">Economy</button>
-              <label class="plan-toggle">
-                <input type="checkbox" />
-                <span>Plan</span>
-              </label>
-              <button type="submit" id="send-button" title="Send" aria-label="Send">Send</button>
-            </div>
-          </div>
+          <textarea id="composer-input" rows="3" placeholder="输入任务，Agent 的文字、工具调用和记忆证据会沉淀到会话树..."></textarea>
+          <button id="send-button" type="submit">发送</button>
         </form>
       </main>
 
-      <aside class="workbench">
-        <section class="workbench-head">
+      <aside class="right-pane" aria-label="Tool visualization">
+        <header class="viz-header">
           <div>
-            <h2 id="workbench-title">Changes</h2>
-            <p id="workbench-subtitle">files touched by this run</p>
+            <p class="eyebrow">Tool Visualization</p>
+            <h2 id="viz-title">选择一个工具调用</h2>
           </div>
-          <button id="open-preview" class="secondary-action">Open</button>
-        </section>
+          <div id="viz-badge" class="viz-badge">Memory OS</div>
+        </header>
 
-        <section id="workbench-content" class="workbench-content"></section>
+        <section id="viz-content" class="viz-content"></section>
       </aside>
-
-      <div id="drawer-backdrop" class="backdrop" hidden></div>
-      <aside id="tree-drawer" class="drawer" aria-label="Session tree" aria-hidden="true">
-        <div class="drawer-head">
-          <div>
-            <h2>Session Tree</h2>
-            <p id="tree-active">active leaf</p>
-          </div>
-          <button id="close-tree" class="icon-action" title="Close">Close</button>
-        </div>
-        <div id="tree-content" class="tree-content"></div>
-      </aside>
-
-      <aside id="inspector" class="inspector" aria-label="Trace inspector" aria-hidden="true">
-        <div class="drawer-head">
-          <div>
-            <h2>Inspector</h2>
-            <p>trace · context · memory · raw json</p>
-          </div>
-          <button id="close-inspector" class="icon-action" title="Close">Close</button>
-        </div>
-        <div class="inspector-tabs">
-          <button class="inspector-tab active" data-panel="trace">Trace</button>
-          <button class="inspector-tab" data-panel="context">Context</button>
-          <button class="inspector-tab" data-panel="memory">Memory</button>
-          <button class="inspector-tab" data-panel="raw">Raw JSON</button>
-        </div>
-        <div id="inspector-content" class="inspector-content"></div>
-      </aside>
-
-      <div id="toast" class="toast" hidden></div>
     </div>
 
+    <div id="toast" class="toast" hidden></div>
     <script src="/app.js" defer></script>
   </body>
 </html>

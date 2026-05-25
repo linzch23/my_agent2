@@ -1,430 +1,1529 @@
-const mockRun = {
-  taskName: "Implement Coding Agent Web UI",
-  meta: "mock run · /Users/ipsc_gummy/Desktop/agent/my_agent2",
-  status: "running",
-  activeTab: "agent",
-  activeInspector: "trace",
-  selectedTreeNode: "leaf-07",
-  sessionId: "mock",
-  sessions: [],
-  lastUpdated: null,
-  memory: "# Long-term Memory\n\n(mock fallback)",
-  memoryExists: false,
-  steps: [
+const demoRun = {
+  sessionId: "demo",
+  title: "修复上下文注入缺陷",
+  meta: "mock fallback · Trust Console",
+  messages: [
     {
-      id: "step-01",
-      nodeId: "root-01",
-      title: "Read product direction",
-      status: "done",
+      id: "m1",
+      role: "user",
       time: "09:41",
-      summary: "Captured the target: OpenHands / Replit Agent / Devin style workflow.",
-      details:
-        "The default view should emphasize run execution and workbench state. Session Tree and raw trace stay behind explicit controls.",
+      text: "修复 Agent 每轮调用没有注入 Runtime Context 的问题，并保留可审计证据。",
+      tools: [],
+    },
+    {
+      id: "m2",
+      role: "assistant",
+      time: "09:42",
+      text: "我会先搜索相关记忆，再读取 L1 概览；命中后沿 MemoryGraph 扩展邻近决策，最后把必要片段注入本轮上下文。",
       tools: [
         {
-          id: "tool-01",
-          name: "read_file",
+          id: "t1",
+          name: "search_context",
           status: "done",
-          output:
-            "README.md\nsrc/my_agent2/loop.py\nsrc/my_agent2/tree_session.py\nfrontend/index.html",
+          input: { query: "Runtime Context 注入", limit: 5 },
+          output: "mem://project/decisions/runtime-context\nmem://agent/patterns/context-budget",
+        },
+        {
+          id: "t2",
+          name: "show_context_links",
+          status: "done",
+          input: { uri: "mem://project/decisions/runtime-context", limit: 5 },
+          output: "derived_from -> ctx://sessions/archives/2026/05/24/default-c1\nrelated -> mem://agent/patterns/context-budget",
+        },
+        {
+          id: "t3",
+          name: "read_context",
+          status: "done",
+          input: { uri: "mem://project/decisions/runtime-context", layer: "auto" },
+          output: "L1 overview: 每轮模型调用前根据用户输入检索 ContextFS，并注入相关记忆。",
         },
       ],
-      expanded: true,
     },
     {
-      id: "step-02",
-      nodeId: "run-02",
-      title: "Design shell layout",
-      status: "done",
-      time: "09:47",
-      summary: "Replaced chat-first structure with a task-first command surface.",
-      details:
-        "TopBar owns task identity and navigation. Timeline owns agent execution. Workbench owns files, preview, code, and tool records.",
-      tools: [],
-      expanded: true,
-    },
-    {
-      id: "step-03",
-      nodeId: "tool-03",
-      title: "Create run timeline",
-      status: "running",
-      time: "09:52",
-      summary: "Rendering collapsible steps with status, tool output, and compact evidence.",
-      details:
-        "Mock RunStep data is used for this version. The API-backed build maps JSONL message/tool entries into the same shape.",
+      id: "m3",
+      role: "assistant",
+      time: "09:46",
+      text: "完成后会话压缩会生成 CompactionEntry，并由 SessionMemoryCommitter 写入 ContextFS 与 MemoryGraph。",
       tools: [
         {
-          id: "tool-03",
-          name: "edit_file",
-          status: "running",
-          output:
-            "frontend/index.html\nfrontend/styles.css\nfrontend/app.js\n\nStatus: replacing static prototype.",
+          id: "t4",
+          name: "remember",
+          status: "done",
+          input: { category: "decisions", title: "Runtime Context 注入边界" },
+          output: "Remembered: mem://project/decisions/runtime-context-boundary",
         },
       ],
-      expanded: true,
     },
-    {
-      id: "step-04",
-      nodeId: "leaf-07",
-      title: "Wire hidden tree and inspector",
-      status: "pending",
-      time: "next",
-      summary: "Keep jump / fork / label and trace details off the default screen.",
-      details: "Drawer actions stay read-only until the API write path is intentionally enabled.",
-      tools: [],
-      expanded: false,
-    },
-  ],
-  changes: [
-    { path: "frontend/index.html", type: "modified", additions: 84, deletions: 90 },
-    { path: "frontend/styles.css", type: "modified", additions: 520, deletions: 390 },
-    { path: "frontend/app.js", type: "modified", additions: 380, deletions: 320 },
-    { path: "src/my_agent2/server.py", type: "added", additions: 375, deletions: 0 },
-  ],
-  preview: {
-    url: "http://127.0.0.1:8765",
-    title: "Local workbench preview",
-  },
-  codeFiles: [
-    {
-      path: "frontend/app.js",
-      language: "js",
-      content: `const runStep = {
-  title: "Create run timeline",
-  status: "running",
-  tools: [{ name: "edit_file", status: "running" }]
-};
-
-renderTimeline(run.steps);
-renderWorkbench(run.activeTab);`,
-    },
-    {
-      path: "src/my_agent2/server.py",
-      language: "py",
-      content: `def _tree_payload(app, *, filter_mode="default"):
-    session = app.tree.sessions[app.session_id]
-    return {
-        "activeLeafId": session.activeLeafId,
-        "nodes": nodes,
-        "debug": app.tree.debugBuildModelContext(app.session_id),
-    }`,
-    },
-  ],
-  tools: [
-    { id: "tool-01", name: "read_file", status: "done", duration: "42ms", target: "README.md" },
-    { id: "tool-02", name: "rg", status: "done", duration: "18ms", target: "src/my_agent2" },
-    { id: "tool-03", name: "edit_file", status: "running", duration: "active", target: "frontend/" },
   ],
   tree: [
-    { id: "root-01", parentId: null, type: "message", label: "task", preview: "Build web UI" },
-    { id: "run-02", parentId: "root-01", type: "message", label: "plan", preview: "Design agent shell" },
-    { id: "tool-03", parentId: "run-02", type: "tool_result", label: "", preview: "Read project files" },
-    { id: "leaf-07", parentId: "tool-03", type: "message", label: "active", preview: "Implement mock UI" },
-    { id: "branch-04", parentId: "run-02", type: "message", label: "alt", preview: "Earlier tree-first prototype" },
+    { id: "root", parentId: null, type: "session_info", label: "session", preview: "修复上下文注入缺陷" },
+    { id: "u1", parentId: "root", type: "message", label: "user", preview: "修复 Runtime Context 注入" },
+    { id: "a1", parentId: "u1", type: "message", label: "assistant", preview: "搜索相关记忆并扩展 MemoryGraph" },
+    { id: "tc1", parentId: "a1", type: "tool_call", label: "search_context", preview: "query=Runtime Context 注入" },
+    { id: "tc2", parentId: "a1", type: "tool_call", label: "show_context_links", preview: "MemoryGraph neighbors" },
+    { id: "c1", parentId: "tc2", type: "compaction", label: "compaction", preview: "压缩为结构化 checkpoint 并提交记忆" },
   ],
-  trace: {
-    activeLeafId: "leaf-07",
-    includedEntryIds: ["root-01", "run-02", "tool-03", "leaf-07"],
-    excludedEntryIds: ["branch-04"],
-    estimatedTokens: 1820,
-    compactionApplied: false,
+  contextDebug: {
+    includedEntryIds: ["root", "u1", "a1", "tc1", "tc2", "c1"],
+    estimatedTokens: 1840,
+    compactionApplied: true,
   },
-  raw: {},
-};
-
-const ui = {
-  tab: "agent",
-  selectedStepId: "step-03",
-  selectedTreeNodeId: mockRun.selectedTreeNode,
-  inspectorPanel: "trace",
+  contextObjects: [
+    {
+      uri: "mem://project/decisions/runtime-context",
+      context_type: "memory",
+      title: "Runtime Context 注入",
+      overview: "每轮模型调用前根据用户输入检索 ContextFS，并注入相关记忆。",
+      trust_score: 0.92,
+    },
+    {
+      uri: "mem://agent/patterns/context-budget",
+      context_type: "memory",
+      title: "Context Budget",
+      overview: "默认注入 L1 overview，只有按需读取时进入 L2 full text。",
+      trust_score: 0.81,
+    },
+  ],
+  activeLeafId: "c1",
+  memory: "# Long-term Memory\n\n- Runtime Context 必须每轮按用户输入检索并注入，而不是只在启动时构造。",
 };
 
 const state = {
-  run: cloneMockRun(),
+  run: structuredClone(demoRun),
+  sessions: [],
   apiMode: false,
-  loading: false,
+  navMode: "messages",
+  leftMode: "chat",
+  selectedToolId: "t2",
+  selectedTreeId: demoRun.activeLeafId,
+  activeUserMessageId: "m1",
+  searchFlowStep: 0,
+  searchFlowPlaying: false,
   sending: false,
-  selectedNodeDetail: null,
 };
 
-const $ = (selector) => document.querySelector(selector);
+const SEARCH_FLOW_AUTOPLAY_DELAY = 1500;
+let searchFlowTimer = null;
 
+const $ = (selector) => document.querySelector(selector);
 const nodes = {
-  taskName: $("#task-name"),
-  taskMeta: $("#task-meta"),
-  visibleTaskTitle: $("#visible-task-title"),
-  agentCount: $("#agent-count"),
-  usageLabel: $("#usage-label"),
-  usagePercent: $("#usage-percent"),
-  usageMeterFill: $("#usage-meter-fill"),
-  metadataSource: $("#metadata-source"),
-  metadataUpdated: $("#metadata-updated"),
-  status: $("#run-status"),
-  tabs: [...document.querySelectorAll(".top-tab")],
-  timeline: $("#timeline"),
-  runSummary: $("#run-summary"),
-  workbenchTitle: $("#workbench-title"),
-  workbenchSubtitle: $("#workbench-subtitle"),
-  workbenchContent: $("#workbench-content"),
+  connectionState: $("#connection-state"),
+  sessionLabel: $("#session-label"),
+  newSessionButton: $("#new-session-button"),
+  sideNavEyebrow: $("#side-nav-eyebrow"),
+  sideNavTitle: $("#side-nav-title"),
+  sideNavTabs: [...document.querySelectorAll(".side-nav-tab")],
+  userMessageNav: $("#user-message-nav"),
+  modeTabs: [...document.querySelectorAll(".mode-tab")],
+  chatView: $("#chat-view"),
+  treeView: $("#tree-view"),
   composer: $("#composer"),
   composerInput: $("#composer-input"),
-  collapseAll: $("#collapse-all"),
-  expandAll: $("#expand-all"),
-  openTree: $("#open-tree"),
-  closeTree: $("#close-tree"),
-  treeDrawer: $("#tree-drawer"),
-  treeContent: $("#tree-content"),
-  treeActive: $("#tree-active"),
-  backdrop: $("#drawer-backdrop"),
-  openInspector: $("#open-inspector"),
-  closeInspector: $("#close-inspector"),
-  inspector: $("#inspector"),
-  inspectorTabs: [...document.querySelectorAll(".inspector-tab")],
-  inspectorContent: $("#inspector-content"),
+  sendButton: $("#send-button"),
+  vizTitle: $("#viz-title"),
+  vizBadge: $("#viz-badge"),
+  vizContent: $("#viz-content"),
   toast: $("#toast"),
 };
 
-function cloneMockRun() {
-  return JSON.parse(JSON.stringify(mockRun));
+function currentTool() {
+  const tools = allTools();
+  if (state.selectedToolId === "demo-memorygraph") {
+    return demoRun.messages.flatMap((message) => message.tools).find((tool) => tool.id === "t2");
+  }
+  return tools.find((tool) => tool.id === state.selectedToolId) || tools[0] || null;
 }
 
-function currentRun() {
-  return state.run || mockRun;
+function allTools() {
+  return state.run.messages.flatMap((message) =>
+    (message.tools || []).map((tool) => ({ ...tool, messageId: message.id })),
+  );
 }
 
-async function loadRealData() {
-  state.loading = true;
-  render();
+async function loadData() {
+  stopSearchFlowAutoplay();
   try {
     const sessionsPayload = await apiGet("/api/sessions");
-    const sessions = normalizeSessions(sessionsPayload.sessions);
-    const selected = selectRecentSession(sessions, sessionsPayload.activeSessionId);
-    if (!selected) {
-      throw new Error("no sessions found");
-    }
+    const sessions = Array.isArray(sessionsPayload.sessions) ? sessionsPayload.sessions : [];
+    const selected = pickSession(sessions, sessionsPayload.activeSessionId);
+    if (!selected) throw new Error("no sessions found");
 
     const sessionId = selected.id;
-    const [runsPayload, treePayload, memoryPayload, toolsPayload] = await Promise.all([
+    const [runsPayload, treePayload, memoryPayload, contextDebug, contextPayload, toolsPayload] = await Promise.all([
       apiGet(`/api/sessions/${encodeURIComponent(sessionId)}/runs`),
       apiGet(`/api/sessions/${encodeURIComponent(sessionId)}/tree`),
       apiGet("/api/memory"),
-      apiGet("/api/tools"),
+      apiGet("/api/context/debug").catch(() => ({})),
+      apiGet("/api/context?limit=200").catch(() => ({ objects: [] })),
+      apiGet("/api/tools").catch(() => ({ tools: [] })),
     ]);
 
-    state.run = buildRunFromApi({
+    state.run = normalizeApiRun({
       selected,
-      sessions,
       runsPayload,
       treePayload,
       memoryPayload,
+      contextDebug,
+      contextPayload,
       toolsPayload,
     });
+    state.sessions = normalizeSessionSummaries(sessions, sessionsPayload.activeSessionId);
     state.apiMode = true;
-    ui.selectedTreeNodeId = state.run.selectedTreeNode;
+    state.selectedToolId = pickPreferredTool(allTools())?.id || "demo-memorygraph";
+    state.selectedTreeId = state.run.activeLeafId || state.selectedTreeId || state.run.tree.at(-1)?.id || "";
   } catch (error) {
-    state.run = cloneMockRun();
-    state.run.meta += ` · API fallback: ${error.message}`;
+    state.run = structuredClone(demoRun);
+    state.sessions = demoSessions();
     state.apiMode = false;
-    showToast(`Using mock fallback: ${error.message}`);
-  } finally {
-    state.loading = false;
-    render();
+    state.selectedTreeId = state.run.activeLeafId || "";
+    showToast(`使用演示数据：${error.message}`);
   }
+  render();
+}
+
+function pickPreferredTool(tools) {
+  const searchWithResults = tools.find((tool) => isSearchTool(tool) && parseSearchResults(tool).length);
+  return (
+    searchWithResults ||
+    tools.find((tool) => isSearchTool(tool)) ||
+    tools.find((tool) => isGraphTool(tool)) ||
+    tools.find((tool) => isReadTool(tool)) ||
+    tools.find((tool) => isRememberTool(tool)) ||
+    tools[0]
+  );
 }
 
 async function apiGet(path) {
   const response = await fetch(path, { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    throw new Error(`${path} returned ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`${path} ${response.status}`);
   return response.json();
 }
 
 async function apiPost(path, payload) {
   const response = await fetch(path, {
     method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error || `${path} returned ${response.status}`);
-  }
+  if (!response.ok) throw new Error(data.error || `${path} ${response.status}`);
   return data;
 }
 
-function normalizeSessions(rawSessions) {
-  if (!Array.isArray(rawSessions)) return [];
-  return rawSessions
-    .map((item) => {
-      if (typeof item === "string") {
-        return { id: item, updatedAt: null, recordCount: null, activeLeafId: null };
-      }
-      return {
-        id: String(item.id || ""),
-        title: item.title || null,
-        updatedAt: item.updatedAt || null,
-        createdAt: item.createdAt || null,
-        recordCount: item.recordCount ?? null,
-        activeLeafId: item.activeLeafId || null,
-      };
-    })
-    .filter((item) => item.id);
-}
-
-function selectRecentSession(sessions, activeSessionId) {
-  if (!sessions.length) return null;
-  const sorted = [...sessions].sort((a, b) => {
-    const at = Date.parse(a.updatedAt || a.createdAt || "") || 0;
-    const bt = Date.parse(b.updatedAt || b.createdAt || "") || 0;
-    if (at !== bt) return at - bt;
-    return a.id.localeCompare(b.id);
-  });
-  return sorted.at(-1) || sessions.find((item) => item.id === activeSessionId) || sessions[0];
-}
-
-function buildRunFromApi({ selected, sessions, runsPayload, treePayload, memoryPayload, toolsPayload }) {
-  const steps = (runsPayload.runs || []).map((step, index) =>
-    normalizeRunStep(step, index, runsPayload.runs.length),
+function pickSession(sessions, activeSessionId) {
+  const normalized = sessions
+    .map((item) => (typeof item === "string" ? { id: item } : item))
+    .filter((item) => item && item.id);
+  return (
+    normalized.find((item) => item.id === activeSessionId) ||
+    [...normalized].sort((a, b) => String(a.updatedAt || "").localeCompare(String(b.updatedAt || ""))).at(-1)
   );
-  const tree = (treePayload.nodes || []).map(normalizeTreeNode);
-  const selectedTreeNode =
-    selected.activeLeafId ||
-    tree.find((node) => node.status === "active")?.id ||
-    tree.at(-1)?.id ||
-    "";
-  const toolEvents = (runsPayload.toolEvents || []).map(normalizeToolEvent);
-  const toolDefinitions = normalizeToolDefinitions(toolsPayload.tools);
-  const tools = toolEvents.length ? toolEvents : toolDefinitions;
-  const changes = (runsPayload.fileChanges || []).map(normalizeFileChange);
-  const trace = {
-    activeLeafId: selectedTreeNode,
-    includedEntryIds: tree.map((node) => node.id),
-    excludedEntryIds: [],
-    estimatedTokens: 0,
-    compactionApplied: steps.some((step) => step.kind === "checkpoint"),
-  };
+}
+
+function normalizeSessionSummaries(sessions, activeSessionId) {
+  return sessions
+    .map((item) => (typeof item === "string" ? { id: item } : item))
+    .filter((item) => item && item.id)
+    .map((item) => ({
+      id: String(item.id),
+      title: item.title || `Session ${shortId(item.id)}`,
+      recordCount: item.recordCount ?? 0,
+      createdAt: item.createdAt || "",
+      updatedAt: item.updatedAt || item.createdAt || "",
+      activeLeafId: item.activeLeafId || "",
+      active: item.id === activeSessionId,
+    }))
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+}
+
+function demoSessions() {
+  return [
+    {
+      id: state.run.sessionId || "demo",
+      title: state.run.title || "演示会话",
+      recordCount: state.run.messages.length,
+      createdAt: "",
+      updatedAt: "",
+      activeLeafId: state.run.activeLeafId || "",
+      active: true,
+    },
+  ];
+}
+
+function normalizeApiRun({ selected, runsPayload, treePayload, memoryPayload, contextDebug, contextPayload, toolsPayload }) {
+  const steps = Array.isArray(runsPayload.runs) ? runsPayload.runs : [];
+  const toolEvents = Array.isArray(runsPayload.toolEvents) ? runsPayload.toolEvents : [];
+  const messages = [];
+
+  for (const step of steps) {
+    if (step.kind !== "user" && step.kind !== "assistant") continue;
+    const stepTools = Array.isArray(step.toolCalls) ? step.toolCalls : [];
+    messages.push({
+      id: step.id || crypto.randomUUID(),
+      role: step.kind === "user" ? "user" : "assistant",
+      time: formatTime(step.createdAt),
+      text: step.output || step.summary || "",
+      tools: stepTools.map((tool) => normalizeTool(tool, step.id)),
+    });
+  }
+
+  if (!messages.length) {
+    messages.push({
+      id: "empty",
+      role: "assistant",
+      time: "",
+      text: "当前 session 暂无可展示对话。可以在左下角发送一个任务。",
+      tools: toolEvents.map((tool) => normalizeTool(tool, "empty")),
+    });
+  }
+
+  const knownToolIds = new Set(messages.flatMap((message) => message.tools.map((tool) => tool.id)));
+  const looseTools = toolEvents.map((tool) => normalizeTool(tool, "loose")).filter((tool) => !knownToolIds.has(tool.id));
+  if (looseTools.length) {
+    messages.push({
+      id: "tool-events",
+      role: "assistant",
+      time: "",
+      text: "这些工具调用来自 session JSONL，可点击在右侧查看可视化结果。",
+      tools: looseTools,
+    });
+  }
 
   return {
-    taskName: selected.title || `Session ${selected.id}`,
-    meta: `real JSONL · ${selected.id} · ${selected.recordCount ?? tree.length} records`,
-    status: "done",
     sessionId: selected.id,
-    sessions,
-    lastUpdated: selected.updatedAt || selected.createdAt || null,
-    selectedTreeNode,
-    steps,
-    changes,
-    preview: {
-      url: window.location.origin || "http://127.0.0.1:8765",
-      title: "Local workbench preview",
-    },
-    codeFiles: [
-      {
-        path: `sessions/${selected.id}.jsonl`,
-        language: "jsonl",
-        content: "Use the Raw JSON inspector to inspect records for this read-only session.",
-      },
-    ],
-    tools,
-    toolDefinitions,
-    tree,
-    trace,
+    title: selected.title || `Session ${selected.id}`,
+    meta: `real JSONL · ${selected.recordCount ?? steps.length} records`,
+    messages,
+    tree: (treePayload.nodes || []).map((node) => ({
+      id: node.id,
+      parentId: node.parentId || null,
+      type: node.type || "node",
+      label: node.label || node.type || "",
+      preview: node.preview || "",
+      status: node.status || "normal",
+    })),
+    contextDebug,
+    contextObjects: Array.isArray(contextPayload.objects) ? contextPayload.objects : [],
+    activeLeafId: selected.activeLeafId || (treePayload.nodes || []).find((node) => node.status === "active")?.id || "",
     memory: memoryPayload.memory || "",
-    memoryExists: Boolean(memoryPayload.exists),
-    raw: {
-      session: selected,
-      runs: runsPayload,
-      tree: treePayload,
-      memory: memoryPayload,
-      tools: toolsPayload,
-    },
+    toolsCatalog: toolsPayload.tools || [],
   };
 }
 
-function normalizeRunStep(step, index, total) {
-  const toolCalls = Array.isArray(step.toolCalls) ? step.toolCalls.map(normalizeStepTool) : [];
+function normalizeTool(tool, fallbackId) {
+  const input = tool.input && typeof tool.input === "object" ? tool.input : {};
   return {
-    id: step.id || `step-${index + 1}`,
-    nodeId: step.nodeId || step.id || "",
-    kind: step.kind || "assistant",
-    title: step.title || capitalize(step.kind || "step"),
-    status: normalizeStatus(step.status),
-    time: formatTime(step.createdAt),
-    summary: step.summary || "(no summary)",
-    details: step.output || step.summary || "",
-    tools: toolCalls,
-    expanded: index >= Math.max(total - 4, 0),
-    raw: step,
-  };
-}
-
-function normalizeStepTool(tool) {
-  return {
-    id: tool.id || tool.name || "tool",
+    id: tool.id || tool.toolUseId || `${fallbackId}-${tool.name || "tool"}`,
     name: tool.name || "tool",
     status: normalizeStatus(tool.status),
-    input: tool.input || {},
-    output: tool.output || "(no output yet)",
-  };
-}
-
-function normalizeTreeNode(node) {
-  return {
-    id: node.id,
-    parentId: node.parentId || null,
-    type: node.type || "node",
-    label: node.label || "",
-    status: node.status || "normal",
-    preview: node.preview || "",
-    children: Array.isArray(node.children) ? node.children : [],
-    raw: node,
-  };
-}
-
-function normalizeToolEvent(tool) {
-  return {
-    id: tool.id || tool.toolUseId || tool.name,
-    name: tool.name || "tool",
-    status: normalizeStatus(tool.status),
-    duration: formatTime(tool.createdAt),
-    target: tool.target || summarizeInput(tool.input),
+    input,
     output: tool.output || "",
   };
 }
 
-function normalizeToolDefinitions(tools) {
-  if (!Array.isArray(tools)) return [];
-  return tools.map((tool) => ({
-    id: tool.name || tool,
-    name: tool.name || String(tool),
-    status: "done",
-    duration: "available",
-    target: tool.description || "registered tool",
-    output: tool.description || "",
-  }));
+function normalizeStatus(status) {
+  return status === "running" || status === "error" || status === "pending" ? status : "done";
 }
 
-function normalizeFileChange(change) {
+function render() {
+  nodes.connectionState.textContent = state.apiMode ? "real API" : "demo data";
+  nodes.sessionLabel.textContent = `session: ${state.run.sessionId || "session"}`;
+  nodes.modeTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.leftMode === state.leftMode));
+  nodes.sideNavTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.navMode === state.navMode));
+  nodes.chatView.classList.toggle("active", state.leftMode === "chat");
+  nodes.treeView.classList.toggle("active", state.leftMode === "tree");
+  renderSideNav();
+  renderChat();
+  renderTree();
+  renderVisualization();
+}
+
+function renderSideNav() {
+  if (state.navMode === "sessions") {
+    nodes.sideNavEyebrow.textContent = "Sessions";
+    nodes.sideNavTitle.textContent = "历史会话";
+    nodes.userMessageNav.className = "user-message-nav session-nav-list";
+    renderSessionNav();
+  } else {
+    nodes.sideNavEyebrow.textContent = "User Turns";
+    nodes.sideNavTitle.textContent = "消息定位";
+    nodes.userMessageNav.className = "user-message-nav";
+    renderUserNav();
+  }
+}
+
+function renderUserNav() {
+  const userMessages = state.run.messages.filter((message) => message.role === "user");
+  if (!userMessages.length) {
+    nodes.userMessageNav.replaceChildren(emptyUserNav());
+    return;
+  }
+  nodes.userMessageNav.replaceChildren(
+    ...userMessages.map((message, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `user-nav-item ${message.id === state.activeUserMessageId ? "active" : ""}`;
+      button.innerHTML = `
+        <span class="user-nav-index">${index + 1}</span>
+        <span class="user-nav-copy">
+          <span>${escapeHtml(message.time || "user")}</span>
+          <strong>${escapeHtml(compactText(message.text, 58))}</strong>
+        </span>
+      `;
+      button.addEventListener("click", () => jumpToUserMessage(message.id));
+      return button;
+    }),
+  );
+}
+
+function renderSessionNav() {
+  const sessions = state.sessions.length ? state.sessions : demoSessions();
+  if (!sessions.length) {
+    nodes.userMessageNav.replaceChildren(emptySideNav("暂无历史会话"));
+    return;
+  }
+  nodes.userMessageNav.replaceChildren(
+    ...sessions.map((session, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `session-nav-item ${session.id === state.run.sessionId ? "active" : ""}`;
+      button.innerHTML = `
+        <span class="session-nav-index">${index + 1}</span>
+        <span class="session-nav-copy">
+          <strong>${escapeHtml(compactText(session.title || session.id, 42))}</strong>
+          <span>${escapeHtml(sessionTimeLabel(session))} · ${escapeHtml(String(session.recordCount ?? 0))} records</span>
+          <code>${escapeHtml(shortId(session.id))}</code>
+        </span>
+      `;
+      button.addEventListener("click", () => selectSession(session.id));
+      return button;
+    }),
+  );
+}
+
+async function selectSession(sessionId) {
+  if (!sessionId || sessionId === state.run.sessionId) return;
+  stopSearchFlowAutoplay();
+  if (!state.apiMode) {
+    showToast("演示模式下没有可切换的真实历史会话。");
+    return;
+  }
+  try {
+    await apiPost("/api/sessions/select", { sessionId });
+    state.selectedToolId = "";
+    state.selectedTreeId = "";
+    state.activeUserMessageId = "";
+    state.searchFlowStep = 0;
+    await loadData();
+    showToast(`已切换到 session: ${shortId(sessionId)}`);
+  } catch (error) {
+    showToast(`切换会话失败：${error.message}`);
+  }
+}
+
+function sessionTimeLabel(session) {
+  const value = session.updatedAt || session.createdAt;
+  if (!value) return "no timestamp";
+  return formatTime(value);
+}
+
+function emptyUserNav() {
+  return emptySideNav("暂无用户消息");
+}
+
+function emptySideNav(text) {
+  const div = document.createElement("div");
+  div.className = "user-nav-empty";
+  div.textContent = text;
+  return div;
+}
+
+function renderChat() {
+  nodes.chatView.replaceChildren(...state.run.messages.map(renderMessage));
+}
+
+function renderMessage(message) {
+  const article = document.createElement("article");
+  article.className = `message-card ${message.role} ${message.loading ? "loading" : ""} ${message.id === state.activeUserMessageId ? "located" : ""}`;
+  article.dataset.messageId = message.id;
+
+  const head = document.createElement("div");
+  head.className = "message-head";
+  head.innerHTML = `<span class="message-role">${messageRoleLabel(message.role)}</span><span>${escapeHtml(message.time)}</span>`;
+
+  const text = document.createElement("p");
+  text.className = "message-text";
+  if (message.loading && !message.text) {
+    text.append("Agent 正在思考");
+    text.appendChild(typingDots());
+  } else {
+    text.textContent = message.text || (message.role === "tool" ? "工具调用完成" : "(empty)");
+    if (message.loading) text.appendChild(typingDots());
+  }
+
+  article.append(head, text);
+  if (message.tools?.length) {
+    const strip = document.createElement("div");
+    strip.className = "tool-strip";
+    for (const tool of message.tools) strip.appendChild(renderToolChip(tool));
+    article.appendChild(strip);
+  }
+  return article;
+}
+
+function jumpToUserMessage(messageId) {
+  state.activeUserMessageId = messageId;
+  state.leftMode = "chat";
+  render();
+  window.requestAnimationFrame(() => {
+    const target = nodes.chatView.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+    if (!target) return;
+    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    target.classList.add("flash-locate");
+    window.setTimeout(() => target.classList.remove("flash-locate"), 1100);
+  });
+}
+
+function messageRoleLabel(role) {
+  if (role === "user") return "User";
+  if (role === "tool") return "Tool";
+  return "Agent";
+}
+
+function typingDots() {
+  const dots = document.createElement("span");
+  dots.className = "typing-dots";
+  dots.innerHTML = "<i></i><i></i><i></i>";
+  return dots;
+}
+
+function renderToolChip(tool) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `tool-chip ${toolKind(tool)} ${tool.status || ""} ${tool.id === state.selectedToolId ? "active" : ""}`;
+  button.textContent = `${tool.name} · ${tool.status}`;
+  button.addEventListener("click", () => {
+    stopSearchFlowAutoplay();
+    state.selectedToolId = tool.id;
+    state.searchFlowStep = 0;
+    render();
+  });
+  return button;
+}
+
+function scrollChatToBottom() {
+  window.requestAnimationFrame(() => {
+    nodes.chatView.scrollTop = nodes.chatView.scrollHeight;
+  });
+}
+
+function appendLiveMessage(message) {
+  state.run.messages.push(message);
+  if (message.role === "user") state.activeUserMessageId = message.id;
+  render();
+  scrollChatToBottom();
+}
+
+function updateLiveMessage(id, patch) {
+  const index = state.run.messages.findIndex((message) => message.id === id);
+  if (index === -1) return;
+  state.run.messages[index] = { ...state.run.messages[index], ...patch };
+  render();
+  scrollChatToBottom();
+}
+
+async function sendChatStream(message) {
+  const userId = crypto.randomUUID();
+  const assistantId = crypto.randomUUID();
+  const pendingTools = new Map();
+
+  appendLiveMessage({ id: userId, role: "user", time: "now", text: message, tools: [] });
+  appendLiveMessage({ id: assistantId, role: "assistant", time: "streaming", text: "", tools: [], loading: true });
+
+  const response = await fetch("/api/chat/stream", {
+    method: "POST",
+    headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `/api/chat/stream ${response.status}`);
+  }
+
+  let assistantText = "";
+  await readSse(response, {
+    user_message: () => {},
+    delta: (payload) => {
+      assistantText += payload.text || "";
+      updateLiveMessage(assistantId, { text: assistantText, loading: true });
+    },
+    tool_call: (payload) => {
+      const tool = normalizeStreamTool(payload, "running");
+      pendingTools.set(tool.id, tool);
+      updateLiveMessage(assistantId, {
+        text: assistantText || `正在调用 ${tool.name}...`,
+        loading: true,
+      });
+    },
+    tool_result: (payload) => {
+      const result = normalizeStreamToolResult(payload, pendingTools);
+      pendingTools.delete(result.id);
+      state.selectedToolId = result.id;
+      appendLiveMessage({
+        id: `tool-${result.id}-${Date.now()}`,
+        role: "tool",
+        time: "done",
+        text: `${result.name} 完成`,
+        tools: [result],
+      });
+      updateLiveMessage(assistantId, { text: assistantText || "工具调用已完成，正在整理回复...", loading: true });
+    },
+    done: async (payload) => {
+      assistantText = payload.reply || assistantText;
+      updateLiveMessage(assistantId, { text: assistantText || "(no reply)", loading: false });
+    },
+    error: (payload) => {
+      updateLiveMessage(assistantId, { text: `流式回复失败：${payload.error || "unknown error"}`, loading: false });
+    },
+  });
+}
+
+async function readSse(response, handlers) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+    for (const eventText of events) {
+      const eventName = dispatchSseEvent(eventText, handlers);
+      if (eventName === "done" || eventName === "error") {
+        await reader.cancel().catch(() => {});
+        return;
+      }
+    }
+  }
+  if (buffer.trim()) dispatchSseEvent(buffer, handlers);
+}
+
+function dispatchSseEvent(eventText, handlers) {
+  let eventName = "message";
+  const dataLines = [];
+  for (const line of eventText.split(/\r?\n/)) {
+    if (line.startsWith("event:")) eventName = line.slice(6).trim();
+    if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+  }
+  const dataText = dataLines.join("\n");
+  const payload = dataText ? JSON.parse(dataText) : {};
+  handlers[eventName]?.(payload);
+  return eventName;
+}
+
+function normalizeStreamTool(payload, status) {
   return {
-    path: change.path || "(unknown)",
-    type: change.type || "modified",
-    additions: change.additions ?? 0,
-    deletions: change.deletions ?? 0,
+    id: payload.id || payload.tool_use_id || payload.toolUseId || crypto.randomUUID(),
+    name: payload.name || "tool",
+    status,
+    input: payload.input && typeof payload.input === "object" ? payload.input : {},
+    output: payload.output || payload.content || "",
   };
 }
 
-function normalizeStatus(status) {
-  if (status === "running" || status === "error" || status === "pending") return status;
-  return "done";
+function normalizeStreamToolResult(payload, pendingTools) {
+  const id = payload.tool_use_id || payload.toolUseId || payload.id || payload.name || crypto.randomUUID();
+  const pending = pendingTools.get(id) || {};
+  const output = payload.output || payload.content || payload.result || "";
+  return {
+    id,
+    name: payload.name || pending.name || "tool",
+    status: normalizeStatus(payload.status || (String(output).toLowerCase().startsWith("error") ? "error" : "done")),
+    input: payload.input && typeof payload.input === "object" ? payload.input : pending.input || {},
+    output,
+  };
 }
 
-function summarizeInput(input) {
-  if (!input || typeof input !== "object") return "";
-  return input.path || input.command || input.url || input.pattern || "";
+function renderTree() {
+  const rootKey = "__root__";
+  const nodesByParent = new Map();
+  for (const node of state.run.tree || []) {
+    const key = node.parentId || rootKey;
+    if (!nodesByParent.has(key)) nodesByParent.set(key, []);
+    nodesByParent.get(key).push(node);
+  }
+
+  const actionBar = renderTreeActionBar();
+  const root = document.createElement("div");
+  root.className = "tree-list";
+  const roots = nodesByParent.get(rootKey) || state.run.tree.filter((node) => !node.parentId);
+  const rootDepth = roots.length > 1 ? 1 : 0;
+  const rootMode = roots.length > 1 ? "branch-head" : "trunk";
+  for (const item of roots) root.appendChild(renderTreeNode(item, nodesByParent, rootDepth, rootMode));
+  nodes.treeView.replaceChildren(actionBar, root);
+}
+
+function renderTreeActionBar() {
+  const selected = selectedTreeNode();
+  const panel = document.createElement("section");
+  panel.className = "tree-action-panel";
+  panel.innerHTML = `
+    <div>
+      <h3>${escapeHtml(selected ? selected.label || selected.type : "选择一个节点")}</h3>
+      <p>${escapeHtml(selected ? `${selected.id} · ${selected.preview || selected.type}` : "点击会话树节点后，可以从该节点 fork、jump 或打标签。")}</p>
+    </div>
+    <div class="tree-command-row">
+      <button type="button" data-tree-action="fork" ${selected ? "" : "disabled"}>Fork</button>
+      <button type="button" data-tree-action="jump" ${selected ? "" : "disabled"}>Jump</button>
+      <button type="button" data-tree-action="label" ${selected ? "" : "disabled"}>Label</button>
+      <button type="button" data-tree-action="clone">Clone</button>
+    </div>
+  `;
+  panel.querySelector('[data-tree-action="fork"]').addEventListener("click", () => runTreeAction("fork"));
+  panel.querySelector('[data-tree-action="jump"]').addEventListener("click", () => runTreeAction("jump"));
+  panel.querySelector('[data-tree-action="label"]').addEventListener("click", () => runTreeAction("label"));
+  panel.querySelector('[data-tree-action="clone"]').addEventListener("click", () => runTreeAction("clone"));
+  return panel;
+}
+
+function renderTreeNode(node, nodesByParent, depth, mode = "trunk") {
+  const wrap = document.createElement("div");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `tree-node ${escapeAttr(node.type)} tree-${mode} ${node.status === "active" ? "active" : ""} ${node.id === state.selectedTreeId ? "selected" : ""}`;
+  button.style.setProperty("--indent", `${depth * 18}px`);
+  button.innerHTML = `
+    <span class="tree-node-main">
+      <span class="tree-node-title">${escapeHtml(node.label || node.type)} · ${escapeHtml(shortId(node.id))}</span>
+      <span class="tree-node-preview">${escapeHtml(node.preview || "")}</span>
+    </span>
+    <span class="status-pill">${escapeHtml(node.status === "active" ? "active" : node.type)}</span>
+  `;
+  button.addEventListener("click", () => {
+    state.selectedTreeId = node.id;
+    state.selectedToolId = findToolForTreeNode(node)?.id || state.selectedToolId;
+    render();
+  });
+  wrap.appendChild(button);
+  const children = nodesByParent.get(node.id) || [];
+  for (const child of children) {
+    const childLayout = nextTreeChildLayout(depth, mode, children.length);
+    wrap.appendChild(renderTreeNode(child, nodesByParent, childLayout.depth, childLayout.mode));
+  }
+  return wrap;
+}
+
+function nextTreeChildLayout(parentDepth, parentMode, siblingCount) {
+  if (siblingCount > 1) return { depth: parentDepth + 1, mode: "branch-head" };
+  if (parentMode === "branch-head") return { depth: parentDepth + 1, mode: "branch-body" };
+  if (parentMode === "branch-body") return { depth: parentDepth, mode: "branch-body" };
+  return { depth: parentDepth, mode: "trunk" };
+}
+
+function selectedTreeNode() {
+  return (state.run.tree || []).find((node) => node.id === state.selectedTreeId) || null;
+}
+
+async function runTreeAction(action) {
+  const selected = selectedTreeNode();
+  if (action !== "clone" && !selected) return;
+  if (!state.apiMode) {
+    showToast(`演示模式：${action} 需要 my_agent2 Web API。`);
+    return;
+  }
+
+  try {
+    if (action === "fork") {
+      await apiPost("/api/tree/fork", { entryId: selected.id });
+      showToast(`已从 ${shortId(selected.id)} 设置 fork 点，下一条输入会创建分支。`);
+    } else if (action === "jump") {
+      await apiPost("/api/tree/jump", { entryId: selected.id });
+      showToast(`已跳转到 ${shortId(selected.id)}。`);
+    } else if (action === "label") {
+      const label = window.prompt("给这个节点添加标签：", selected.label || "");
+      if (label === null) return;
+      await apiPost("/api/tree/label", { entryId: selected.id, label: label.trim() });
+      showToast("标签已更新。");
+    } else if (action === "clone") {
+      await apiPost("/api/tree/clone", {});
+      showToast("已克隆当前 active branch 到新 session。");
+    }
+    await loadData();
+    state.leftMode = "tree";
+  } catch (error) {
+    showToast(`${action} 失败：${error.message}`);
+  }
+}
+
+async function createNewSession() {
+  const title = window.prompt("新会话标题（可留空）：", "非编码长任务测试");
+  if (title === null) return;
+  if (!state.apiMode) {
+    const id = `demo-${Date.now().toString(36)}`;
+    state.run = {
+      ...structuredClone(demoRun),
+      sessionId: id,
+      title: title.trim() || "新演示会话",
+      messages: [
+        {
+          id: "new-demo-message",
+          role: "assistant",
+          time: "new",
+          text: "演示模式已创建本地新会话。启动 my_agent2 Web API 后会调用 POST /api/sessions 创建真实 session。",
+          tools: [],
+        },
+      ],
+      tree: [{ id: "root", parentId: null, type: "session_info", label: "session", preview: title.trim() || "新演示会话", status: "active" }],
+      activeLeafId: "root",
+    };
+    state.selectedTreeId = "root";
+    state.selectedToolId = "demo-memorygraph";
+    render();
+    return;
+  }
+  try {
+    const payload = await apiPost("/api/sessions", { title: title.trim() || undefined });
+    const sessionId = payload.sessionId || payload.state?.sessionId;
+    showToast(sessionId ? `已创建并切换到 session: ${sessionId}` : "已创建并切换到新 session。");
+    await loadData();
+  } catch (error) {
+    showToast(`新会话创建失败：${error.message}`);
+  }
+}
+
+function findToolForTreeNode(node) {
+  const label = `${node.label || ""} ${node.preview || ""}`.toLowerCase();
+  return allTools().find((tool) => label.includes(tool.name.toLowerCase()));
+}
+
+function renderVisualization() {
+  const tool = currentTool();
+  if (!tool) {
+    nodes.vizTitle.textContent = "选择一个工具调用";
+    nodes.vizBadge.textContent = "Memory OS";
+    nodes.vizContent.replaceChildren(emptyState("点击左侧对话里的工具调用，右侧会展示工具结果，而不是在对话框内展开。"));
+    return;
+  }
+
+  nodes.vizTitle.textContent = tool.name;
+  nodes.vizBadge.textContent = toolKindLabel(tool);
+  if (!isSearchTool(tool)) stopSearchFlowAutoplay();
+  if (isGraphTool(tool)) renderGraphTool(tool);
+  else if (isSearchTool(tool)) renderSearchTool(tool);
+  else if (isReadTool(tool)) renderReadContextTool(tool);
+  else if (isRememberTool(tool)) renderRememberTool(tool);
+  else renderGenericTool(tool);
+}
+
+function renderGraphTool(tool) {
+  nodes.vizContent.replaceChildren(
+    card("MemoryGraph 链接图", "静态展示本次 show_context_links 返回的源节点、关系边和目标节点。没有返回链接时不补虚构节点。", graphStaticComposition(tool)),
+    card("原始工具结果", "工具返回仍保留为文本证据，方便审计。", rawBlock({ input: tool.input, output: tool.output })),
+  );
+}
+
+function renderSearchTool(tool) {
+  const model = buildSearchFlowModel(tool);
+  const step = Math.max(0, Math.min(state.searchFlowStep, SEARCH_FLOW_STEPS.length - 1));
+  nodes.vizContent.replaceChildren(
+    card("ContextFS Search 动态流程", "数据来自本次真实 search_context 输出；Graph Walk 只使用同会话里的 show_context_links 结果，不补虚构邻居。", searchFlowComposition(model, step)),
+    card("原始工具结果", "工具返回仍保留为审计证据；动态画板负责解释检索路径。", rawBlock(searchEvidencePayload(tool, model))),
+  );
+}
+
+function renderReadContextTool(tool) {
+  const layer = tool.input?.layer === "full" ? "L2" : "L1";
+  nodes.vizContent.replaceChildren(
+    card("L0 / L1 / L2 读取策略", `本次读取目标层级：${layer}。默认 auto 读取 L1 overview，避免上下文爆炸。`, layerStack(layer)),
+    card("选中的上下文对象", "ContextObject 通过 URI 寻址，正文保存在 memory/context/{content_path}。", storageMap(tool)),
+    card("读取结果", "这是将进入右侧证据面板的文本，不直接污染左侧对话流。", rawBlock(tool.output || "(empty)")),
+  );
+}
+
+function renderRememberTool(tool) {
+  nodes.vizContent.replaceChildren(
+    card("记忆写入路径", "remember 会写入结构化 ContextObject，同时保留旧版 MEMORY.md 兼容。", storageMap(tool)),
+    card("Memory Commit", "长期记忆不是每轮随意写入；关键沉淀来自 remember 或 compaction 后的 SessionMemoryCommitter。", layerStack("L0")),
+    card("写入证据", "diffs.jsonl 记录变更审计，links.jsonl 记录 MemoryGraph 关系。", rawBlock({ input: tool.input, output: tool.output })),
+  );
+}
+
+function renderGenericTool(tool) {
+  nodes.vizContent.replaceChildren(
+    card("工具调用结果", "普通工具也统一在右侧展示，左侧对话只保留工具调用入口和 Agent 输出节奏。", rawBlock({ name: tool.name, input: tool.input, output: tool.output })),
+  );
+}
+
+function card(title, description, child) {
+  const section = document.createElement("section");
+  section.className = "viz-card";
+  const head = document.createElement("div");
+  head.className = "viz-card-head";
+  head.innerHTML = `<div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div>`;
+  section.append(head, child);
+  return section;
+}
+
+function graphStage(graph) {
+  const stage = document.createElement("div");
+  stage.className = "graph-stage";
+  for (const edge of graph.edges) {
+    const from = graph.nodes.find((node) => node.id === edge.from);
+    const to = graph.nodes.find((node) => node.id === edge.to);
+    if (!from || !to) continue;
+    const edgeEl = document.createElement("div");
+    const x1 = from.x + 59;
+    const y1 = from.y + 29;
+    const x2 = to.x + 59;
+    const y2 = to.y + 29;
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+    edgeEl.className = `graph-edge ${edge.active ? "active" : ""}`;
+    edgeEl.style.cssText = `left:${x1}px;top:${y1}px;width:${length}px;transform:rotate(${angle}deg)`;
+    edgeEl.title = `${edge.relation} ${edge.confidence}`;
+    stage.appendChild(edgeEl);
+  }
+  for (const node of graph.nodes) {
+    const nodeEl = document.createElement("div");
+    nodeEl.className = `graph-node ${node.kind}`;
+    nodeEl.style.left = `${node.x}px`;
+    nodeEl.style.top = `${node.y}px`;
+    nodeEl.textContent = node.label;
+    stage.appendChild(nodeEl);
+  }
+  return stage;
+}
+
+function graphModel(tool) {
+  const uri = tool.input?.uri || extractUri(tool.output) || "mem://project/decisions/runtime-context";
+  return {
+    nodes: [
+      { id: "query", label: "query\n用户任务", kind: "seed", x: 18, y: 132 },
+      { id: "hit", label: shortUri(uri), kind: "hit", x: 164, y: 132 },
+      { id: "archive", label: "session archive\nctx://...", kind: "neighbor", x: 324, y: 56 },
+      { id: "pattern", label: "context budget\npattern", kind: "neighbor", x: 324, y: 204 },
+      { id: "tool", label: "read_context\nL1/L2", kind: "seed", x: 164, y: 262 },
+    ],
+    edges: [
+      { from: "query", to: "hit", relation: "search", confidence: 0.91, active: true },
+      { from: "hit", to: "archive", relation: "derived_from", confidence: 0.95, active: true },
+      { from: "hit", to: "pattern", relation: "related", confidence: 0.73, active: true },
+      { from: "pattern", to: "tool", relation: "selected", confidence: 0.82, active: false },
+    ],
+  };
+}
+
+function graphStaticComposition(tool) {
+  const model = buildGraphStaticModel(tool);
+  const board = document.createElement("div");
+  board.className = "search-flow-board graph-static-board";
+  const title = document.createElement("div");
+  title.className = "search-board-title";
+  title.innerHTML = `
+    <strong>${escapeHtml(shortUri(model.source.uri || "MemoryGraph"))}</strong>
+    <span>${model.links.length ? `${model.links.length} 条真实链接` : "当前节点暂无真实链接"}</span>
+  `;
+  board.append(title, graphStaticCanvas(model));
+  return board;
+}
+
+function buildGraphStaticModel(tool) {
+  const sourceUri = tool.input?.uri || extractUri(tool.output) || "";
+  const sourceObject = contextObjectByUri(sourceUri);
+  const { links } = parseGraphLinks(tool);
+  const source = {
+    uri: sourceUri,
+    label: sourceObject?.contextType || "source",
+    title: sourceObject?.title || shortUri(sourceUri || "source"),
+    subtitle: sourceObject?.overview || sourceUri || "show_context_links 输入节点",
+    x: 8,
+    y: 48,
+  };
+  const targets = links.map((link, index) => {
+    const targetObject = contextObjectByUri(link.target);
+    return {
+      ...link,
+      uri: link.target,
+      label: link.relation,
+      title: targetObject?.title || shortUri(link.target),
+      subtitle: targetObject?.overview || `confidence ${link.confidence}`,
+      x: 62,
+      y: graphTargetY(index, links.length),
+    };
+  });
+  return { source, links, targets };
+}
+
+function graphStaticCanvas(model) {
+  const canvas = document.createElement("div");
+  canvas.className = "search-board-canvas graph-static-canvas";
+  canvas.appendChild(graphStaticEdges(model));
+  canvas.appendChild(graphStaticNode(model.source, "source"));
+  model.targets.forEach((target) => canvas.appendChild(graphStaticNode(target, "target")));
+  if (!model.links.length) {
+    const empty = document.createElement("div");
+    empty.className = "graph-empty-note";
+    empty.textContent = "show_context_links 返回 No links，说明当前 ContextFS 对象还没有显式 MemoryGraph 边。";
+    canvas.appendChild(empty);
+  }
+  canvas.appendChild(graphStaticLegend(model));
+  return canvas;
+}
+
+function graphStaticEdges(model) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "flow-edges visible graph-static-edges");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  model.targets.forEach((target) => {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(model.source.x + 14));
+    line.setAttribute("y1", String(model.source.y + 5));
+    line.setAttribute("x2", String(target.x));
+    line.setAttribute("y2", String(target.y + 5));
+    line.setAttribute("class", "flow-link selected");
+    svg.appendChild(line);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String((model.source.x + target.x) / 2 + 6));
+    label.setAttribute("y", String((model.source.y + target.y) / 2 + 2));
+    label.setAttribute("class", "graph-edge-label");
+    label.textContent = `${target.relation} ${target.confidence}`;
+    svg.appendChild(label);
+  });
+  return svg;
+}
+
+function graphStaticNode(node, kind) {
+  const div = document.createElement("div");
+  div.className = `flow-node visible ${kind === "source" ? "flow-context-node search-hit selected" : "flow-graph-node selected"}`;
+  div.style.setProperty("--x", `${node.x}%`);
+  div.style.setProperty("--y", `${node.y}%`);
+  div.innerHTML = `
+    <span class="flow-node-label">${escapeHtml(node.label)}</span>
+    <strong>${escapeHtml(node.title)}</strong>
+    <span>${escapeHtml(node.subtitle || "")}</span>
+    ${node.confidence ? `<em>${escapeHtml(node.confidence)}</em>` : ""}
+  `;
+  return div;
+}
+
+function graphStaticLegend(model) {
+  const div = document.createElement("div");
+  div.className = "search-flow-legend";
+  div.innerHTML = `
+    <span><i class="legend-dot search"></i>源节点</span>
+    <span><i class="legend-dot graph"></i>目标节点：${model.targets.length}</span>
+    <span><i class="legend-dot selected"></i>链接：${model.links.length}</span>
+  `;
+  return div;
+}
+
+function graphTargetY(index, count) {
+  if (count <= 1) return 48;
+  const top = count <= 3 ? 28 : 16;
+  const gap = count <= 3 ? 20 : 16;
+  return top + index * gap;
+}
+
+function retrievalFlow() {
+  const wrap = document.createElement("div");
+  wrap.className = "retrieval-flow";
+  [
+    ["1 Query", "用户输入或工具参数形成检索词。"],
+    ["2 Search L0/L1", "先用摘要和概览低成本定位候选。"],
+    ["3 Graph Walk", "沿 MemoryGraph 扩展邻近记忆。"],
+    ["4 Select Text", "按预算选择 L1 或按需读取 L2。"],
+  ].forEach(([title, body]) => {
+    const item = document.createElement("div");
+    item.className = "flow-step";
+    item.innerHTML = `<strong>${title}</strong><span>${body}</span>`;
+    wrap.appendChild(item);
+  });
+  return wrap;
+}
+
+const SEARCH_FLOW_STEPS = [
+  ["1 Query", "用户输入或工具参数形成检索词。"],
+  ["2 Search L0/L1", "先用摘要和概览低成本定位候选。"],
+  ["3 Graph Walk", "沿 MemoryGraph 扩展邻近记忆。"],
+  ["4 Select Text", "按预算选择 L1 或按需读取 L2。"],
+];
+
+function searchFlowComposition(model, step) {
+  const wrap = document.createElement("div");
+  wrap.className = "search-flow-composition";
+
+  const controls = document.createElement("div");
+  controls.className = "search-flow-controls";
+  const playButton = document.createElement("button");
+  playButton.type = "button";
+  playButton.className = `search-flow-play ${state.searchFlowPlaying ? "playing" : ""}`;
+  playButton.textContent = state.searchFlowPlaying ? "暂停" : step >= SEARCH_FLOW_STEPS.length - 1 ? "重播" : "自动播放";
+  playButton.addEventListener("click", toggleSearchFlowAutoplay);
+  const status = document.createElement("span");
+  status.textContent = state.searchFlowPlaying ? "自动推进中" : `当前 ${step + 1}/${SEARCH_FLOW_STEPS.length}`;
+  controls.append(playButton, status);
+
+  const timeline = document.createElement("div");
+  timeline.className = "search-flow-timeline";
+  SEARCH_FLOW_STEPS.forEach(([title, body], index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `search-scene-tab ${index === step ? "active" : ""} ${index < step ? "done" : ""}`;
+    button.innerHTML = `<strong>${title}</strong><span>${body}</span>`;
+    button.addEventListener("click", () => {
+      stopSearchFlowAutoplay();
+      state.searchFlowStep = index;
+      renderVisualization();
+    });
+    timeline.appendChild(button);
+  });
+
+  const board = document.createElement("div");
+  board.className = `search-flow-board scene-${step}`;
+  board.appendChild(searchBoardTitle(step));
+  board.appendChild(searchBoardCanvas(model, step));
+
+  wrap.append(controls, timeline, board);
+  return wrap;
+}
+
+function toggleSearchFlowAutoplay() {
+  if (state.searchFlowPlaying) {
+    stopSearchFlowAutoplay({ rerender: true });
+  } else {
+    startSearchFlowAutoplay();
+  }
+}
+
+function startSearchFlowAutoplay() {
+  clearSearchFlowTimer();
+  state.searchFlowPlaying = true;
+  if (state.searchFlowStep >= SEARCH_FLOW_STEPS.length - 1) state.searchFlowStep = 0;
+  renderVisualization();
+  scheduleSearchFlowAdvance();
+}
+
+function scheduleSearchFlowAdvance() {
+  clearSearchFlowTimer();
+  searchFlowTimer = window.setTimeout(() => {
+    if (!state.searchFlowPlaying) return;
+    if (state.searchFlowStep < SEARCH_FLOW_STEPS.length - 1) {
+      state.searchFlowStep += 1;
+      renderVisualization();
+      scheduleSearchFlowAdvance();
+    } else {
+      stopSearchFlowAutoplay({ rerender: true });
+    }
+  }, SEARCH_FLOW_AUTOPLAY_DELAY);
+}
+
+function stopSearchFlowAutoplay({ rerender = false } = {}) {
+  const wasPlaying = state.searchFlowPlaying;
+  clearSearchFlowTimer();
+  state.searchFlowPlaying = false;
+  if (rerender && wasPlaying) renderVisualization();
+}
+
+function clearSearchFlowTimer() {
+  if (!searchFlowTimer) return;
+  window.clearTimeout(searchFlowTimer);
+  searchFlowTimer = null;
+}
+
+function searchBoardTitle(step) {
+  const [title, body] = SEARCH_FLOW_STEPS[step];
+  const header = document.createElement("div");
+  header.className = "search-board-title";
+  header.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span>`;
+  return header;
+}
+
+function searchBoardCanvas(model, step) {
+  const canvas = document.createElement("div");
+  canvas.className = "search-board-canvas progressive-search-canvas";
+  canvas.appendChild(searchFlowEdges(model, step));
+  canvas.appendChild(searchFlowNode({
+    id: "query",
+    type: "query",
+    label: "Query",
+    title: model.query || "(未提供 query)",
+    subtitle: "用户输入 / 工具参数",
+    x: 4,
+    y: 42,
+  }, step, model));
+  model.searchNodes.forEach((node) => canvas.appendChild(searchFlowNode(node, step, model)));
+  if (step >= 2) {
+    model.graphNodes.forEach((node) => canvas.appendChild(searchFlowNode(node, step, model)));
+  }
+  canvas.appendChild(searchFlowLegend(model, step));
+  return canvas;
+}
+
+function queryTokens(query) {
+  const tokens = String(query || "")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (tokens.length >= 3) return tokens.slice(0, 5);
+  return ["用户输入", "工具参数", "关键词", "URI"];
+}
+
+function extractSearchQuery(tool) {
+  const input = tool.input && typeof tool.input === "object" ? tool.input : {};
+  return input.query || input.pattern || input.target || "";
+}
+
+function buildSearchFlowModel(tool) {
+  const query = extractSearchQuery(tool);
+  const hits = parseSearchResults(tool);
+  const hitUris = new Set(hits.map((item) => item.uri));
+  const allObjects = normalizeContextObjects(state.run.contextObjects || []);
+  const items = mergeContextObjects(allObjects, hits);
+  const searchNodes = layoutSearchNodes(items, hitUris);
+  const links = parseGraphLinksForSearch(hits);
+  const graphNodes = layoutGraphNodes(links, searchNodes);
+  return { query, items, hits, hitUris, searchNodes, links, graphNodes };
+}
+
+function layoutSearchNodes(items, hitUris) {
+  const count = Math.max(items.length, 1);
+  const columns = count > 8 ? 3 : count > 4 ? 2 : 1;
+  const rows = Math.ceil(count / columns);
+  return items.map((item, index) => ({
+    ...item,
+    id: item.uri,
+    type: "context",
+    isSearchHit: hitUris.has(item.uri),
+    label: item.contextType || "memory",
+    title: item.title || shortUri(item.uri),
+    subtitle: item.overview || item.uri,
+    x: 31 + (index % columns) * 15,
+    y: 18 + Math.floor(index / columns) * Math.min(70 / Math.max(rows - 1, 1), 18),
+  }));
+}
+
+function layoutGraphNodes(links, searchNodes) {
+  const known = new Set(searchNodes.map((node) => node.id));
+  const targetUris = unique(links.map((link) => link.target).filter((uri) => uri && !known.has(uri))).slice(0, 5);
+  const ySlots = targetUris.length <= 3 ? [25, 47, 69] : [15, 31, 47, 63, 79];
+  return targetUris.map((uri, index) => ({
+    id: uri,
+    uri,
+    type: "graph",
+    label: "neighbor",
+    title: shortUri(uri),
+    subtitle: graphRelationSummary(uri, links),
+    score: graphConfidenceSummary(uri, links),
+    x: 70,
+    y: ySlots[index] ?? 47,
+  }));
+}
+
+function searchFlowNode(node, step, model) {
+  const div = document.createElement("div");
+  const isQuery = node.type === "query";
+  const isSearch = node.type === "context";
+  const isGraph = node.type === "graph";
+  const visible = isQuery || (isSearch && step >= 1) || (isGraph && step >= 2);
+  const selected = step >= 3 && !isQuery && isSelectedSearchNode(node, model);
+  const active = (step === 0 && isQuery) || (step === 1 && node.isSearchHit) || (step === 2 && isGraph) || selected;
+  div.className = [
+    "flow-node",
+    `flow-${node.type}-node`,
+    node.isSearchHit ? "search-hit" : "",
+    visible ? "visible" : "",
+    active ? "active" : "",
+    selected ? "selected" : "",
+  ].join(" ");
+  div.style.setProperty("--x", `${node.x}%`);
+  div.style.setProperty("--y", `${node.y}%`);
+  div.innerHTML = `
+    <span class="flow-node-label">${escapeHtml(node.label)}</span>
+    <strong>${escapeHtml(node.title)}</strong>
+    <span>${escapeHtml(node.subtitle || "")}</span>
+    ${node.score ? `<em>${escapeHtml(node.score)}</em>` : ""}
+  `;
+  return div;
+}
+
+function searchFlowEdges(model, step) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", `flow-edges ${step >= 2 ? "visible" : ""}`);
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  if (step < 2) return svg;
+  const nodesById = new Map([...model.searchNodes, ...model.graphNodes].map((node) => [node.id, node]));
+  model.links.forEach((link) => {
+    const from = nodesById.get(link.source);
+    const to = nodesById.get(link.target);
+    if (!from || !to) return;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(from.x + 12));
+    line.setAttribute("y1", String(from.y + 5));
+    line.setAttribute("x2", String(to.x));
+    line.setAttribute("y2", String(to.y + 5));
+    line.setAttribute("class", `flow-link ${step === 2 ? "walking" : "selected"}`);
+    svg.appendChild(line);
+  });
+  return svg;
+}
+
+function searchFlowLegend(model, step) {
+  const div = document.createElement("div");
+  div.className = "search-flow-legend";
+  const graphNote = model.links.length
+    ? `Graph Walk 扩展 ${model.graphNodes.length} 个邻近节点`
+    : "未发现同会话 show_context_links 链接结果";
+  div.innerHTML = `
+    <span><i class="legend-dot query"></i>Query</span>
+    <span><i class="legend-dot context"></i>ContextFS 全量：${model.searchNodes.length}</span>
+    <span><i class="legend-dot search"></i>Search 命中：${model.hits.length}</span>
+    <span><i class="legend-dot graph"></i>${escapeHtml(graphNote)}</span>
+    <span><i class="legend-dot selected"></i>Step ${step + 1}</span>
+  `;
+  return div;
+}
+
+function isSelectedSearchNode(node, model) {
+  if (node.type === "context") return model.hitUris.has(node.id);
+  if (node.type === "graph") return model.links.some((link) => link.target === node.id);
+  return false;
+}
+
+function layerStack(activeLayer) {
+  const wrap = document.createElement("div");
+  wrap.className = "layer-stack";
+  [
+    ["L0", "abstract", "一句话摘要，用于快速过滤和列表呈现。"],
+    ["L1", "overview", "默认注入层，2-4 句解释为什么相关。"],
+    ["L2", "full content", "完整正文，只有明确读取或证据展开时使用。"],
+  ].forEach(([layer, name, body]) => {
+    const item = document.createElement("div");
+    item.className = `layer-box ${activeLayer === layer ? "active" : ""}`;
+    item.innerHTML = `<strong>${layer} · ${name}</strong><span>${body}</span>`;
+    wrap.appendChild(item);
+  });
+  return wrap;
+}
+
+function storageMap(tool) {
+  const uri = tool.input?.uri || extractUri(tool.output) || inferMemoryUri(tool);
+  const wrap = document.createElement("div");
+  wrap.className = "storage-map";
+  [
+    ["URI", uri],
+    ["index.jsonl", "ContextObject 元数据：title、abstract、overview、trust、status"],
+    ["mem/.../*.md", "L2 正文文件，按 URI 路径落盘"],
+    ["links.jsonl", "MemoryGraph 关系边：supports / related / derived_from"],
+    ["diffs.jsonl", "写入与提交的审计记录"],
+  ].forEach(([left, right]) => {
+    const row = document.createElement("div");
+    row.className = "storage-row";
+    row.innerHTML = `<strong>${escapeHtml(left)}</strong><span>${escapeHtml(right)}</span>`;
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+function selectionList(items) {
+  const wrap = document.createElement("div");
+  wrap.className = "selection-list";
+  items.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "selection-row";
+    row.innerHTML = `<strong>${index + 1}</strong><span>${escapeHtml(item.uri)}<br>${escapeHtml(item.reason)}</span><span class="score">${item.score}</span>`;
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+function parseSearchResults(tool) {
+  const text = typeof tool.output === "string" ? tool.output : JSON.stringify(tool.output || "");
+  const blocks = text.split(/\n(?=-\s+(?:mem|ctx):\/\/)/g);
+  const items = [];
+  for (const block of blocks) {
+    const uri = extractUri(block);
+    if (!uri) continue;
+    const trust = block.match(/trust=([^|\n]+)/)?.[1]?.trim() || "";
+    const contextType = block.match(/type=([^|\n]+)/)?.[1]?.trim() || "";
+    const lines = block.split(/\r?\n/).slice(1).join("\n").trim();
+    const titleMatch = lines.match(/^([^:\n：]+)[:：]\s*([\s\S]*)$/);
+    const title = titleMatch ? titleMatch[1].trim() : shortUri(uri);
+    const overview = titleMatch ? titleMatch[2].trim() : lines;
+    items.push({
+      uri,
+      title,
+      overview,
+      contextType,
+      score: trust || "?",
+      reason: overview || "search_context 返回的真实命中项",
+    });
+  }
+  return items.slice(0, 5);
+}
+
+function normalizeContextObjects(objects) {
+  return objects
+    .filter((item) => item && item.uri)
+    .map((item) => ({
+      uri: item.uri,
+      title: item.title || shortUri(item.uri),
+      overview: item.overview || item.abstract || "",
+      contextType: item.context_type || item.contextType || "context",
+      score: item.trust_score == null ? "?" : String(item.trust_score),
+      reason: item.overview || item.abstract || "ContextFS index object",
+    }));
+}
+
+function mergeContextObjects(objects, hits) {
+  const byUri = new Map();
+  objects.forEach((item) => byUri.set(item.uri, item));
+  hits.forEach((hit) => byUri.set(hit.uri, { ...(byUri.get(hit.uri) || {}), ...hit }));
+  return [...byUri.values()];
+}
+
+function parseGraphLinksForSearch(items) {
+  const searchUris = new Set(items.map((item) => item.uri));
+  if (!searchUris.size) return [];
+  const links = [];
+  allTools()
+    .filter((tool) => isGraphTool(tool))
+    .forEach((tool) => {
+      const { source, links: parsedLinks } = parseGraphLinks(tool);
+      if (!searchUris.has(source)) return;
+      links.push(...parsedLinks);
+    });
+  return uniqueBy(links, (link) => `${link.source}|${link.relation}|${link.target}`);
+}
+
+function parseGraphLinks(tool) {
+  const output = String(tool.output || "");
+  const source = tool.input?.uri || output.match(/^Links for ((?:mem|ctx):\/\/[^:]+):/m)?.[1] || "";
+  const links = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/(?:-\s*)?([^\s]+)\s*->\s*((?:mem|ctx):\/\/[^\s()]+)(?:\s*\(confidence=([^)]+)\))?/);
+    if (!match) continue;
+    links.push({
+      source,
+      relation: match[1],
+      target: match[2],
+      confidence: match[3] || "?",
+    });
+  }
+  return { source, links };
+}
+
+function contextObjectByUri(uri) {
+  if (!uri) return null;
+  return normalizeContextObjects(state.run.contextObjects || []).find((item) => item.uri === uri) || null;
+}
+
+function graphRelationSummary(uri, links) {
+  const relations = unique(links.filter((link) => link.target === uri).map((link) => link.relation));
+  return relations.length ? relations.join(" / ") : "linked neighbor";
+}
+
+function graphConfidenceSummary(uri, links) {
+  const confidence = links.find((link) => link.target === uri)?.confidence;
+  return confidence ? `conf ${confidence}` : "";
+}
+
+function searchEvidencePayload(tool, model) {
+  return {
+    input: tool.input,
+    searchOutput: tool.output,
+    contextFsObjects: model.items.map((item) => ({
+      uri: item.uri,
+      title: item.title,
+      trust: item.score,
+      type: item.contextType,
+      searchHit: model.hitUris.has(item.uri),
+    })),
+    parsedSearchHits: model.hits.map((item) => ({
+      uri: item.uri,
+      title: item.title,
+      trust: item.score,
+      type: item.contextType,
+    })),
+    graphLinksFromShowContextLinks: model.links,
+  };
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function uniqueBy(values, keyFn) {
+  const seen = new Set();
+  return values.filter((value) => {
+    const key = keyFn(value);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function rawBlock(value) {
+  const pre = document.createElement("pre");
+  pre.className = "raw-block";
+  pre.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  return pre;
+}
+
+function emptyState(text) {
+  const div = document.createElement("div");
+  div.className = "empty-state";
+  div.textContent = text;
+  return div;
+}
+
+function isGraphTool(tool) {
+  return /graph|link|neighbor|show_context_links/.test(tool.name);
+}
+
+function isSearchTool(tool) {
+  return /search|list_context/.test(tool.name);
+}
+
+function isReadTool(tool) {
+  return /read_context|context/.test(tool.name) && !isSearchTool(tool) && !isGraphTool(tool);
+}
+
+function isRememberTool(tool) {
+  return /remember|commit|compact/.test(tool.name);
+}
+
+function toolKind(tool) {
+  if (isGraphTool(tool) || isRememberTool(tool)) return "memory";
+  if (isSearchTool(tool)) return "search";
+  if (isReadTool(tool)) return "read";
+  if (/write|edit|run_command/.test(tool.name)) return "write";
+  return "generic";
+}
+
+function toolKindLabel(tool) {
+  if (isGraphTool(tool)) return "MemoryGraph";
+  if (isSearchTool(tool)) return "Context Search";
+  if (isReadTool(tool)) return "L0/L1/L2";
+  if (isRememberTool(tool)) return "Memory Commit";
+  return "Tool Result";
+}
+
+function extractUri(text) {
+  const match = String(text || "").match(/(?:mem|ctx):\/\/[^\s,'"）)]+/);
+  return match ? match[0] : "";
+}
+
+function inferMemoryUri(tool) {
+  const category = tool.input?.category || "events";
+  const title = slug(tool.input?.title || tool.input?.query || tool.name || "memory");
+  if (category === "profile") return "mem://user/profile";
+  if (["preferences", "entities", "events"].includes(category)) return `mem://user/${category}/${title}`;
+  return `mem://project/${category}/${title}`;
 }
 
 function formatTime(value) {
@@ -434,415 +1533,29 @@ function formatTime(value) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDateTime(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString([], {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function shortId(value) {
+  return String(value || "").slice(0, 8);
 }
 
-function render() {
-  const run = currentRun();
-  nodes.taskName.textContent = run.taskName;
-  nodes.visibleTaskTitle.textContent = run.taskName;
-  nodes.taskMeta.textContent = state.loading ? `${run.meta} · loading` : run.meta;
-  nodes.agentCount.textContent = String(run.tools.length || 1);
-  nodes.usageLabel.textContent = state.apiMode ? "Session" : "Fallback";
-  nodes.usagePercent.textContent = `${run.steps.length} steps`;
-  nodes.usageMeterFill.style.width = `${Math.min(100, Math.max(8, run.steps.length * 2))}%`;
-  nodes.metadataSource.textContent = state.apiMode
-    ? `JSONL source: sessions/${run.sessionId}.jsonl`
-    : "Mock fallback data source";
-  nodes.metadataUpdated.textContent = run.lastUpdated
-    ? `Last record: ${formatDateTime(run.lastUpdated)}`
-    : "Waiting for latest record";
-  nodes.status.className = `status-button ${run.status}`;
-  const statusText = state.sending ? "sending" : state.apiMode ? "real data" : run.status;
-  nodes.status.innerHTML = `<span></span> ${capitalize(statusText)}`;
-  nodes.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === ui.tab));
-  nodes.inspectorTabs.forEach((tab) =>
-    tab.classList.toggle("active", tab.dataset.panel === ui.inspectorPanel),
-  );
-  renderTimeline();
-  renderWorkbench();
-  renderTreeDrawer();
-  renderInspector();
+function shortUri(value) {
+  const text = String(value || "");
+  if (text.length <= 42) return text;
+  return `${text.slice(0, 18)}...${text.slice(-18)}`;
 }
 
-function renderTimeline() {
-  const run = currentRun();
-  const done = run.steps.filter((step) => step.status === "done").length;
-  const running = run.steps.filter((step) => step.status === "running").length;
-  nodes.runSummary.textContent = `${done} done · ${running} running · ${run.steps.length} steps`;
-  nodes.timeline.replaceChildren(...run.steps.map(renderStep));
+function compactText(value, maxLength) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= maxLength) return text || "(empty)";
+  return `${text.slice(0, maxLength - 1)}…`;
 }
 
-function renderStep(step, index) {
-  const article = document.createElement("article");
-  article.className = `run-step ${step.status} ${step.expanded ? "expanded" : ""}`;
-  const button = document.createElement("button");
-  button.className = "step-toggle";
-  button.setAttribute("aria-expanded", String(step.expanded));
-  button.innerHTML = `
-    <span class="step-rail"><span class="step-index">${index + 1}</span></span>
-    <span class="step-main">
-      <span class="step-topline">
-        <span class="step-title">${escapeHtml(step.title)}</span>
-        <span class="step-time">${escapeHtml(step.time)}</span>
-      </span>
-      <span class="step-summary">${escapeHtml(step.summary)}</span>
-    </span>
-    <span class="step-state">${escapeHtml(step.status)}</span>
-  `;
-  button.addEventListener("click", () => {
-    step.expanded = !step.expanded;
-    renderTimeline();
-  });
-  article.appendChild(button);
-
-  if (step.expanded) {
-    const body = document.createElement("div");
-    body.className = "step-body";
-    body.appendChild(paragraph(step.details));
-    if (step.tools.length) {
-      body.appendChild(toolOutputList(step.tools));
-    }
-    article.appendChild(body);
-  }
-  return article;
-}
-
-function toolOutputList(tools) {
-  const wrap = document.createElement("div");
-  wrap.className = "tool-output-list";
-  for (const tool of tools) {
-    const details = document.createElement("details");
-    details.className = `tool-output ${tool.status}`;
-    details.open = tool.status === "running";
-    details.innerHTML = `
-      <summary>
-        <span>${escapeHtml(tool.name)}</span>
-        <span>${escapeHtml(tool.status)}</span>
-      </summary>
-      <pre>${escapeHtml(tool.output)}</pre>
-    `;
-    wrap.appendChild(details);
-  }
-  return wrap;
-}
-
-function renderWorkbench() {
-  const run = currentRun();
-  const titleMap = {
-    agent: ["Agent", "current run workspace"],
-    changes: ["Changes", "files touched by this run"],
-    preview: ["Preview", run.preview.url],
-    code: ["Code", run.codeFiles[0]?.path || "session"],
-    tools: ["Tools", `${run.tools.length} tool calls`],
-  };
-  const [title, subtitle] = titleMap[ui.tab] || titleMap.agent;
-  nodes.workbenchTitle.textContent = title;
-  nodes.workbenchSubtitle.textContent = subtitle;
-  if (ui.tab === "agent") renderAgentPanel();
-  if (ui.tab === "changes") renderChangesPanel();
-  if (ui.tab === "preview") renderPreviewPanel();
-  if (ui.tab === "code") renderCodePanel();
-  if (ui.tab === "tools") renderToolsPanel();
-}
-
-function renderAgentPanel() {
-  const run = currentRun();
-  nodes.workbenchContent.replaceChildren(
-    metricGrid([
-      ["Session", run.sessionId || "mock"],
-      ["Steps", String(run.steps.length)],
-      ["Changed", String(run.changes.length)],
-      ["Tools", String(run.tools.length)],
-    ]),
-    sectionBlock("Current Step", run.steps.find((step) => step.status === "running")?.summary || run.steps.at(-1)?.summary || ""),
-    sectionBlock("Data Source", state.apiMode ? "Live API session data." : "Mock fallback data."),
-  );
-}
-
-function renderChangesPanel() {
-  const run = currentRun();
-  if (!run.changes.length) {
-    nodes.workbenchContent.replaceChildren(sectionBlock("Changes", "No file changes detected yet."));
-    return;
-  }
-  const list = document.createElement("div");
-  list.className = "changes-list";
-  for (const change of run.changes) {
-    const row = document.createElement("button");
-    row.className = `change-row ${change.type}`;
-    row.innerHTML = `
-      <span class="file-dot"></span>
-      <span class="file-main">
-        <span>${escapeHtml(change.path)}</span>
-        <span>${escapeHtml(change.type)}</span>
-      </span>
-      <span class="diff-stat">+${escapeHtml(change.additions)} -${escapeHtml(change.deletions)}</span>
-    `;
-    row.addEventListener("click", () => {
-      ui.tab = "code";
-      render();
-    });
-    list.appendChild(row);
-  }
-  nodes.workbenchContent.replaceChildren(list);
-}
-
-function renderPreviewPanel() {
-  const run = currentRun();
-  const frame = document.createElement("div");
-  frame.className = "preview-frame";
-  frame.innerHTML = `
-    <div class="preview-toolbar">
-      <span></span><span></span><span></span>
-      <div>${escapeHtml(run.preview.url)}</div>
-    </div>
-    <div class="preview-empty">
-      <strong>${escapeHtml(run.preview.title)}</strong>
-      <p>${escapeHtml(state.apiMode ? "Live API is serving this workbench." : "API unavailable; mock preview is active.")}</p>
-    </div>
-  `;
-  nodes.workbenchContent.replaceChildren(frame);
-}
-
-function renderCodePanel() {
-  const run = currentRun();
-  const file = run.codeFiles[0] || { path: "session", language: "text", content: "" };
-  const wrap = document.createElement("div");
-  wrap.className = "code-view";
-  wrap.innerHTML = `
-    <div class="code-head">
-      <span>${escapeHtml(file.path)}</span>
-      <span>${escapeHtml(file.language)}</span>
-    </div>
-    <pre>${escapeHtml(file.content)}</pre>
-  `;
-  nodes.workbenchContent.replaceChildren(wrap);
-}
-
-function renderToolsPanel() {
-  const run = currentRun();
-  const definitions = Array.isArray(run.toolDefinitions) ? run.toolDefinitions : [];
-  if (!run.tools.length && !definitions.length) {
-    nodes.workbenchContent.replaceChildren(sectionBlock("Tools", "No tool calls detected yet."));
-    return;
-  }
-
-  const panel = document.createElement("div");
-  panel.className = "tools-directory";
-
-  const search = document.createElement("label");
-  search.className = "tool-search";
-  search.innerHTML = `
-    <input aria-label="Search tools" placeholder="Search for tools and files..." />
-  `;
-  panel.appendChild(search);
-
-  if (definitions.length) {
-    const directory = document.createElement("section");
-    directory.className = "tool-directory-section";
-    directory.innerHTML = `<h3>Available tools</h3>`;
-    for (const tool of definitions) {
-      const row = document.createElement("button");
-      row.className = "directory-tool-row";
-      row.innerHTML = `
-        <span class="directory-tool-icon">${escapeHtml(tool.name.slice(0, 2) || "tl")}</span>
-        <span class="directory-tool-main">
-          <span>${escapeHtml(tool.name)}</span>
-          <span>${escapeHtml(tool.target || tool.output || "registered tool")}</span>
-        </span>
-      `;
-      directory.appendChild(row);
-    }
-    panel.appendChild(directory);
-  }
-
-  const table = document.createElement("section");
-  table.className = "tool-call-strip";
-  table.innerHTML = `<h3>Recent tool calls</h3>`;
-  for (const tool of run.tools) {
-    const row = document.createElement("div");
-    row.className = `tool-row ${tool.status}`;
-    row.innerHTML = `
-      <span class="status-dot"></span>
-      <span>${escapeHtml(tool.name)}</span>
-      <span>${escapeHtml(tool.target)}</span>
-      <span>${escapeHtml(tool.duration)}</span>
-    `;
-    table.appendChild(row);
-  }
-  panel.appendChild(table);
-  nodes.workbenchContent.replaceChildren(panel);
-}
-
-function renderTreeDrawer() {
-  const run = currentRun();
-  nodes.treeActive.textContent = `active leaf ${run.selectedTreeNode || "(none)"}`;
-  const byParent = new Map();
-  for (const item of run.tree) {
-    const key = item.parentId || "root";
-    if (!byParent.has(key)) byParent.set(key, []);
-    byParent.get(key).push(item);
-  }
-  const root = document.createElement("div");
-  root.className = "drawer-tree";
-  for (const node of byParent.get("root") || []) {
-    root.appendChild(renderTreeNode(node, byParent, 0));
-  }
-  nodes.treeContent.replaceChildren(root);
-}
-
-function renderTreeNode(node, byParent, depth) {
-  const wrap = document.createElement("div");
-  wrap.className = "drawer-tree-item";
-  const button = document.createElement("button");
-  button.className = node.id === ui.selectedTreeNodeId ? "selected" : "";
-  button.style.setProperty("--indent", `${depth * 18}px`);
-  button.innerHTML = `
-    <span class="node-kind ${escapeAttr(node.type)}"></span>
-    <span class="drawer-node-main">
-      <span>${escapeHtml(node.id)} · ${escapeHtml(node.type)}</span>
-      <span>${escapeHtml(node.preview)}</span>
-    </span>
-    <span>${escapeHtml(node.status === "active" ? "active" : node.label || "")}</span>
-  `;
-  button.addEventListener("click", () => selectTreeNode(node));
-  wrap.appendChild(button);
-  const actions = document.createElement("div");
-  actions.className = "tree-actions";
-  actions.style.setProperty("--indent", `${depth * 18 + 20}px`);
-  actions.append(
-    smallAction("Jump", () => readOnlyAction(`jump ${node.id}`)),
-    smallAction("Fork", () => readOnlyAction(`fork ${node.id}`)),
-    smallAction("Label", () => readOnlyAction(`label ${node.id}`)),
-  );
-  wrap.appendChild(actions);
-  for (const child of byParent.get(node.id) || []) {
-    wrap.appendChild(renderTreeNode(child, byParent, depth + 1));
-  }
-  return wrap;
-}
-
-async function selectTreeNode(node) {
-  ui.selectedTreeNodeId = node.id;
-  state.selectedNodeDetail = node.raw || node;
-  renderTreeDrawer();
-  renderInspector();
-  if (!state.apiMode || !currentRun().sessionId) return;
-  try {
-    state.selectedNodeDetail = await apiGet(
-      `/api/sessions/${encodeURIComponent(currentRun().sessionId)}/node/${encodeURIComponent(node.id)}`,
-    );
-    renderInspector();
-  } catch (error) {
-    showToast(`Node detail unavailable: ${error.message}`);
-  }
-}
-
-function renderInspector() {
-  const run = currentRun();
-  if (ui.inspectorPanel === "trace") {
-    nodes.inspectorContent.replaceChildren(
-      metricGrid([
-        ["Active", run.trace.activeLeafId || "(none)"],
-        ["Included", String(run.trace.includedEntryIds.length)],
-        ["Excluded", String(run.trace.excludedEntryIds.length)],
-        ["Tokens", String(run.trace.estimatedTokens)],
-      ]),
-      codeBlock(run.trace),
-    );
-  }
-  if (ui.inspectorPanel === "context") {
-    nodes.inspectorContent.replaceChildren(
-      sectionBlock("Context Window", run.trace.includedEntryIds.join(" -> ") || "(empty)"),
-      sectionBlock("Compaction", String(run.trace.compactionApplied)),
-    );
-  }
-  if (ui.inspectorPanel === "memory") {
-    nodes.inspectorContent.replaceChildren(
-      run.memoryExists ? codeBlock(run.memory) : sectionBlock("Memory", "No memory file found."),
-    );
-  }
-  if (ui.inspectorPanel === "raw") {
-    nodes.inspectorContent.replaceChildren(codeBlock(state.selectedNodeDetail || run.raw || run));
-  }
-}
-
-function metricGrid(items) {
-  const grid = document.createElement("div");
-  grid.className = "metric-grid";
-  for (const [label, value] of items) {
-    const item = document.createElement("div");
-    item.className = "metric";
-    item.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
-    grid.appendChild(item);
-  }
-  return grid;
-}
-
-function sectionBlock(title, body) {
-  const block = document.createElement("section");
-  block.className = "section-block";
-  block.innerHTML = `<h3>${escapeHtml(title)}</h3><p>${escapeHtml(body)}</p>`;
-  return block;
-}
-
-function paragraph(text) {
-  const p = document.createElement("p");
-  p.className = "step-detail";
-  p.textContent = text;
-  return p;
-}
-
-function codeBlock(value) {
-  const pre = document.createElement("pre");
-  pre.className = "json-block";
-  pre.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  return pre;
-}
-
-function smallAction(label, handler) {
-  const button = document.createElement("button");
-  button.textContent = label;
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    handler();
-  });
-  return button;
-}
-
-function setDrawer(open) {
-  nodes.treeDrawer.classList.toggle("open", open);
-  nodes.treeDrawer.setAttribute("aria-hidden", String(!open));
-  nodes.backdrop.hidden = !open && !nodes.inspector.classList.contains("open");
-}
-
-function setInspector(open) {
-  nodes.inspector.classList.toggle("open", open);
-  nodes.inspector.setAttribute("aria-hidden", String(!open));
-  nodes.backdrop.hidden = !open && !nodes.treeDrawer.classList.contains("open");
-}
-
-function readOnlyAction(message) {
-  showToast(`Read-only V2: ${message} is not enabled.`);
-}
-
-function showToast(message) {
-  nodes.toast.textContent = message;
-  nodes.toast.hidden = false;
-  window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => {
-    nodes.toast.hidden = true;
-  }, 2200);
+function slug(value) {
+  return String(value || "memory")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fff\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
 }
 
 function escapeHtml(value) {
@@ -857,82 +1570,71 @@ function escapeAttr(value) {
   return String(value ?? "").replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-function capitalize(value) {
-  const text = String(value || "");
-  return text.charAt(0).toUpperCase() + text.slice(1);
+function showToast(message) {
+  nodes.toast.textContent = message;
+  nodes.toast.hidden = false;
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => {
+    nodes.toast.hidden = true;
+  }, 2600);
 }
 
-nodes.tabs.forEach((tab) => {
+nodes.modeTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
-    ui.tab = tab.dataset.tab;
+    state.leftMode = tab.dataset.leftMode;
     render();
   });
 });
 
-nodes.inspectorTabs.forEach((tab) => {
+nodes.sideNavTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
-    ui.inspectorPanel = tab.dataset.panel;
+    state.navMode = tab.dataset.navMode;
     render();
   });
 });
 
-nodes.collapseAll.addEventListener("click", () => {
-  currentRun().steps.forEach((step) => {
-    step.expanded = false;
-  });
-  renderTimeline();
-});
-
-nodes.expandAll.addEventListener("click", () => {
-  currentRun().steps.forEach((step) => {
-    step.expanded = true;
-  });
-  renderTimeline();
-});
+nodes.newSessionButton.addEventListener("click", createNewSession);
 
 nodes.composer.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const value = nodes.composerInput.value.trim();
-  if (!value || state.sending) return;
-  if (state.apiMode) {
-    state.sending = true;
+  const message = nodes.composerInput.value.trim();
+  if (!message || state.sending) return;
+
+  if (!state.apiMode) {
+    state.run.messages.push({ id: crypto.randomUUID(), role: "user", time: "queued", text: message, tools: [] });
+    nodes.composerInput.value = "";
     render();
-    try {
-      await apiPost("/api/chat", { message: value });
-      nodes.composerInput.value = "";
-      showToast("Sent to /api/chat; session reloaded.");
-      await loadRealData();
-    } catch (error) {
-      showToast(`Send failed: ${error.message}`);
-    } finally {
-      state.sending = false;
-      render();
-    }
+    showToast("演示模式已加入对话；启动 Web API 后会发送到 /api/chat。");
     return;
   }
-  currentRun().steps.push({
-    id: `step-${String(currentRun().steps.length + 1).padStart(2, "0")}`,
-    nodeId: "",
-    title: value,
-    status: "pending",
-    time: "queued",
-    summary: "Queued in mock mode.",
-    details: "The API-backed build is read-only in V2.",
-    tools: [],
-    expanded: true,
-  });
-  nodes.composerInput.value = "";
-  render();
-});
 
-nodes.openTree.addEventListener("click", () => setDrawer(true));
-nodes.closeTree.addEventListener("click", () => setDrawer(false));
-nodes.openInspector.addEventListener("click", () => setInspector(true));
-nodes.closeInspector.addEventListener("click", () => setInspector(false));
-nodes.backdrop.addEventListener("click", () => {
-  setDrawer(false);
-  setInspector(false);
+  state.sending = true;
+  nodes.composerInput.disabled = true;
+  nodes.sendButton.disabled = true;
+  nodes.sendButton.textContent = "发送中";
+  let streamCompleted = false;
+  try {
+    nodes.composerInput.value = "";
+    await sendChatStream(message);
+    streamCompleted = true;
+    state.sending = false;
+    nodes.composerInput.disabled = false;
+    nodes.sendButton.disabled = false;
+    nodes.sendButton.textContent = "发送";
+    render();
+    loadData().catch((error) => showToast(`会话刷新失败：${error.message}`));
+  } catch (error) {
+    showToast(`发送失败：${error.message}`);
+  } finally {
+    if (!streamCompleted) {
+      state.sending = false;
+      nodes.composerInput.disabled = false;
+      nodes.sendButton.disabled = false;
+      nodes.sendButton.textContent = "发送";
+      render();
+    }
+  }
 });
 
 render();
-loadRealData();
+loadData();

@@ -6,6 +6,16 @@ from typing import Any
 
 
 VALID_RELATIONS = {"supports", "contradicts", "updates", "related", "derived_from", "uses_tool"}
+SYMMETRIC_RELATIONS = {"related", "supports", "contradicts"}
+INVERSE_RELATIONS = {
+    "updates": "updated_by",
+    "updated_by": "updates",
+    "derived_from": "parent_of",
+    "parent_of": "derived_from",
+    "uses_tool": "used_by",
+    "used_by": "uses_tool",
+}
+ALL_RELATIONS = VALID_RELATIONS | {"updated_by", "parent_of", "used_by"}
 
 
 class MemoryGraph:
@@ -22,8 +32,18 @@ class MemoryGraph:
         return [json.loads(line) for line in text.splitlines() if line.strip()]
 
     def add_link(self, source: str, target: str, relation: str, confidence: float, reason: str) -> None:
-        if relation not in VALID_RELATIONS:
+        if relation not in ALL_RELATIONS:
             raise ValueError(f"Invalid relation: {relation}")
+        self._add_directed_link(source, target, relation, confidence, reason)
+        # 双向连接：对称关系用相同 relation，方向性关系用反向 relation
+        if relation in SYMMETRIC_RELATIONS:
+            self._add_directed_link(target, source, relation, confidence, reason)
+        elif relation in INVERSE_RELATIONS:
+            self._add_directed_link(target, source, INVERSE_RELATIONS[relation], confidence, reason)
+
+    def _add_directed_link(
+        self, source: str, target: str, relation: str, confidence: float, reason: str
+    ) -> None:
         for link in self._links_cache:
             if link["source_uri"] == source and link["target_uri"] == target and link["relation"] == relation:
                 if confidence > link["confidence"]:
@@ -41,7 +61,10 @@ class MemoryGraph:
         self._write_links()
 
     def neighbors(self, uri: str, limit: int = 5) -> list[dict[str, Any]]:
-        result = [link for link in self._links_cache if link["source_uri"] == uri]
+        result = [
+            link for link in self._links_cache
+            if link["source_uri"] == uri or link["target_uri"] == uri
+        ]
         result.sort(key=lambda x: -x["confidence"])
         return result[:limit]
 
@@ -133,7 +156,7 @@ class MemoryGraph:
         for op in operations:
             rel = op.get("relation", "related")
             conf = float(op.get("confidence", 0.5))
-            if rel in VALID_RELATIONS and conf >= min_confidence:
+            if rel in ALL_RELATIONS and conf >= min_confidence:
                 self.add_link(uri, op["target_uri"], rel, conf, op.get("reason", ""))
                 created.append({
                     "source_uri": uri, "target_uri": op["target_uri"],

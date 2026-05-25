@@ -17,14 +17,16 @@ class MemoryGraphTests(unittest.TestCase):
         self.graph.add_link("mem://a", "mem://b", "related", 0.8, "similar tags")
         self.graph.add_link("mem://a", "mem://c", "supports", 0.9, "confirms finding")
         neighbors = self.graph.neighbors("mem://a", limit=5)
-        self.assertEqual(len(neighbors), 2)
-        self.assertEqual(neighbors[0]["target_uri"], "mem://c")  # higher confidence first
+        # 对称关系：每个 add_link 创建双向 2 条，a 的邻居包括出边和入边
+        self.assertEqual(len(neighbors), 4)
+        self.assertEqual(neighbors[0]["target_uri"], "mem://c")  # supports 0.9 最高
 
     def test_duplicate_link_keeps_higher_confidence(self):
         self.graph.add_link("mem://a", "mem://b", "related", 0.5, "low")
         self.graph.add_link("mem://a", "mem://b", "related", 0.9, "high")
         neighbors = self.graph.neighbors("mem://a", limit=5)
-        self.assertEqual(len(neighbors), 1)
+        # 对称关系：双向 2 条（a→b, b→a），confidence 都已更新为 0.9
+        self.assertEqual(len(neighbors), 2)
         self.assertEqual(neighbors[0]["confidence"], 0.9)
 
     def test_expand_respects_fanout(self):
@@ -33,6 +35,39 @@ class MemoryGraphTests(unittest.TestCase):
         self.graph.add_link("mem://b", "mem://d", "related", 0.7, "")
         expanded = self.graph.expand(["mem://a"], fanout=2)
         self.assertLessEqual(len(expanded), 2)
+
+    def test_neighbors_includes_inbound_links(self):
+        """Querying a URI that is only a target should still return the inbound link."""
+        self.graph.add_link("mem://a", "mem://b", "related", 0.8, "a->b")
+        inbound = self.graph.neighbors("mem://b", limit=5)
+        # 对称关系：双向 2 条（a→b, b→a），确认包含入边 a→b
+        self.assertEqual(len(inbound), 2)
+        self.assertIn(inbound[0]["source_uri"], ("mem://a", "mem://b"))
+
+    def test_directional_link_creates_inverse(self):
+        """derived_from 应自动创建反向 parent_of 连接。"""
+        self.graph.add_link("mem://a", "mem://b", "derived_from", 0.9, "a from b")
+        # a 的出边是 derived_from
+        a_out = [l for l in self.graph._links_cache
+                 if l["source_uri"] == "mem://a"]
+        self.assertEqual(len(a_out), 1)
+        self.assertEqual(a_out[0]["relation"], "derived_from")
+        self.assertEqual(a_out[0]["target_uri"], "mem://b")
+        # b 的出边是 parent_of
+        b_out = [l for l in self.graph._links_cache
+                 if l["source_uri"] == "mem://b"]
+        self.assertEqual(len(b_out), 1)
+        self.assertEqual(b_out[0]["relation"], "parent_of")
+        self.assertEqual(b_out[0]["target_uri"], "mem://a")
+
+    def test_asymmetric_link_no_reverse(self):
+        """updates 不应用对称关系（related）处理，应使用 INVERSE_RELATIONS。"""
+        self.graph.add_link("mem://a", "mem://b", "updates", 0.7, "a updates b")
+        b_out = [l for l in self.graph._links_cache
+                 if l["source_uri"] == "mem://b"]
+        self.assertEqual(len(b_out), 1)
+        self.assertEqual(b_out[0]["relation"], "updated_by")
+        self.assertEqual(b_out[0]["target_uri"], "mem://a")
 
     def test_neighbors_unknown_uri_returns_empty(self):
         result = self.graph.neighbors("mem://nonexistent", limit=5)

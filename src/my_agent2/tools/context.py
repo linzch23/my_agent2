@@ -99,8 +99,14 @@ class ShowContextLinksTool(Tool):
             return f"(No links for {uri}.)"
         lines = [f"Links for {uri}:"]
         for n in neighbors:
-            lines.append(
-                f"- {n['relation']} -> {n['target_uri']} "
-                f"(confidence={n.get('confidence', '?')})"
-            )
+            if n["source_uri"] == uri:
+                lines.append(
+                    f"- {n['relation']} -> {n['target_uri']} "
+                    f"(confidence={n.get('confidence', '?')})"
+                )
+            else:
+                lines.append(
+                    f"- {n['source_uri']} -> {n['relation']} "
+                    f"(confidence={n.get('confidence', '?')})"
+                )
         return "\n".join(lines)

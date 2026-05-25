@@ -10,3 +10,5 @@ memory/
 sessions/
 dist/
 build/
+.playwright-mcp
+.superpowers/
